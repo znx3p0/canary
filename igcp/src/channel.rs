@@ -6,16 +6,14 @@ use std::marker::PhantomData;
 use crate::async_snow::Snow;
 use crate::io::{Read, TcpStream, UnixStream, Write};
 
-#[warn( quitalo_al_rato )]
-use crate::serialization::formats::{Bincode, ReadFormat, SendFormat};
-// use crate::serialization::formats::{Any, Bincode, Bson, Json, Postcard, ReadFormat, SendFormat};
+use crate::serialization::formats::{Any, Bincode, Bson, Json, Postcard, ReadFormat, SendFormat};
 use crate::serialization::{rx, tx};
 use crate::type_iter::{MainChannel, PeerChannel, Pipeline};
 use crate::Result;
 
 /// channel that allows input with any serialization format. supports bincode, json, bson and postcard and deserializes in that order
-// pub type AnyChannel = Channel<AnyInput, Bincode>;
-// pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
+pub type AnyChannel = Channel<AnyInput, Bincode>;
+pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
 
 #[derive(From)]
 /// agnostic channel that can be used for local or remote communication
