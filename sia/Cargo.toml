@@ -1,0 +1,46 @@
+[package]
+name = "sia"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# internal
+serde = { version = "1", features = [ "derive" ] }
+bincode = { version = "1" }
+
+# routes
+dashmap = "4" # stable api
+once_cell = "1" # stable api
+
+# runtime
+async-std = { version = "1", features = [ "unstable" ] } # stable api
+tokio = { version = "1", features = [ "rt-multi-thread", "macros", "time" ], optional = true } # stable api
+log = "0.4" # stable api
+
+# ergonomics
+sia-macro = { path = "../sia-macro" }
+
+# communications
+igcp = { path = "../igcp" }
+
+# compile time
+derive_more = "0.99" # stable api
+
+# providers
+async_t = "0.2.1"
+camino = "1"
+
+# encryption
+rand = "0.8"
+snow = "0.8.0" # api may change
+
+[lib]
+doctest = false
+
+[features]
+runtime-tokio = [ "tokio" ]
+runtime-async-std = [  ]
+
+default = [ "runtime-async-std" ]
