@@ -13,7 +13,7 @@ where
     O: Serialize,
 {
     let serialized = F::serialize(&obj)?;
-    let len: [u8; 8] = u64::to_be_bytes(serialized.len() as u64);
+    let len: [u8; 4] = u32::to_be_bytes(serialized.len() as u32);
     st.write(&len).await?;
     // return length of object sent
     let len = st.write(&serialized).await?;
@@ -26,9 +26,10 @@ where
     T: Read + Unpin,
     O: DeserializeOwned,
 {
-    let mut size_buffer = [0u8; 8];
+    let mut size_buffer = [0u8; 4];
     st.read_exact(&mut size_buffer).await?;
-    let size = u64::from_be_bytes(size_buffer);
+    let size = u32::from_be_bytes(size_buffer);
+
     // this is done for fallibility, we don't want people sending in usize::MAX
     // as the len unexpectedly crashing the program
     let mut buf = Vec::new();
@@ -43,3 +44,5 @@ where
     st.read_exact(&mut buf).await?;
     F::deserialize(&buf)
 }
+
+

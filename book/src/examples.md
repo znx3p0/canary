@@ -7,12 +7,14 @@ Some examples have been prepared for you to build along,
 and a final challenge for you to try building individually.
 
 The examples you have to build are the following (in order):
-- The Raft consensus algorithm
 - An RPC system
+- The Raft consensus algorithm
 - A distributed key-value store
 
-Do note that it is assumed that you have extensive knowledge of the Rust language,
-as some of these projects can be demanding, and a knowledge of procedural macros
-is also needed for the RPC system.
+Do note that it is assumed that you have used the Rust programming language
+and are comfortable with it, as some of these projects can be demanding,
+and a knowledge of procedural macros is also needed for the RPC system.
 
-
+If you still don't understand how things work, don't be afraid to take a look
+at the code, since the codebase is relatively small; Sia is implemented in ~600 sloc,
+and igcp (the library that provides channels) is implemented in ~900 sloc.

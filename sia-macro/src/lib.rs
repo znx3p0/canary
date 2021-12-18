@@ -151,6 +151,34 @@ pub fn route(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
     }
 }
 
+#[proc_macro_attribute]
+pub fn main(_: TokenStream, item: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(item as syn::ItemFn);
+
+    let ret = &input.sig.output;
+    let name = &input.sig.ident;
+    let inputs = &input.sig.inputs;
+
+    if input.sig.asyncness.is_none() {
+        let msg = "the async keyword is missing from the function declaration";
+        return syn::Error::new_spanned(input.sig.fn_token, msg)
+            .to_compile_error()
+            .into();
+    } else if name == "main" && !inputs.is_empty() {
+        let msg = "the main function cannot accept arguments";
+        return syn::Error::new_spanned(&input.sig.inputs, msg)
+            .to_compile_error()
+            .into();
+    }
+
+    quote!(
+        fn main() #ret {
+            #input
+            ::sia::runtime::block_on(main())
+        }
+    ).into()
+}
+
 fn struct_route(attrs: TokenStream, item: ItemStruct) -> TokenStream {
     let ident = &item.ident;
     let endpoint = syn::parse::<LitStr>(attrs)

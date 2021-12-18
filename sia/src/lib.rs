@@ -6,3 +6,4 @@ pub mod service;
 pub use igcp;
 pub use igcp::{err, pipe, pipeline, Channel, Result, Addr};
 pub use sia_macro::*;
+pub use serde::{Serialize, Deserialize};

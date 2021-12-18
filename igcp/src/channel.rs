@@ -16,7 +16,10 @@ pub type AnyChannel = Channel<AnyInput, Bincode>;
 pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
 
 #[derive(From)]
-/// agnostic channel that can be used for local or remote communication
+/// agnostic channel that can be used for local or remote communication.
+///
+/// do note that channels cannot send messages over u32::MAX length,
+/// and they may have problems sending large messages.
 /// ```norun
 /// async fn send_random(mut chan: Channel) -> Result<()> {
 ///     chan.send(fastrand::u64(0..1000)).await?;
