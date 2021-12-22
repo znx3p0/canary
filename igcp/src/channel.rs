@@ -19,7 +19,8 @@ pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
 /// agnostic channel that can be used for local or remote communication.
 ///
 /// do note that channels cannot send messages over u32::MAX length,
-/// and they may have problems sending large messages.
+/// and encrypted messages have a max length of 65511 bytes.
+///
 /// ```norun
 /// async fn send_random(mut chan: Channel) -> Result<()> {
 ///     chan.send(fastrand::u64(0..1000)).await?;
@@ -74,29 +75,31 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
     pub async fn new_any_encrypted(stream: impl Into<Box<dyn ReadWrite>>) -> Result<Self> {
         Ok(Snow::new(stream.into()).await?.into())
     }
+
     pub async fn tx<O: Serialize>(&mut self, obj: O) -> Result<usize> {
         match self {
-            Channel::Tcp(st) => st.tx(obj).await,
-            Channel::Unix(st) => st.tx(obj).await,
-            Channel::EncryptedAny(st) => st.tx(obj).await,
+            Channel::Tcp(st) => st.tx::<_, SendFmt>(obj).await,
+            Channel::Unix(st) => st.tx::<_, SendFmt>(obj).await,
+            Channel::EncryptedAny(st) => st.tx::<_, SendFmt>(obj).await,
             Channel::InsecureAny(st) => tx::<_, _, SendFmt>(st, obj).await,
             Channel::InsecureTcp(st) => tx::<_, _, SendFmt>(st, obj).await,
             Channel::InsecureUnix(st) => tx::<_, _, SendFmt>(st, obj).await,
-            Channel::__InternalPhantomData__(_) => unsafe { core::hint::unreachable_unchecked() },
+            Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }
+    /// send an object through the wire and return the size of the object sent
     pub async fn send<O: Serialize>(&mut self, obj: O) -> Result<usize> {
         self.tx(obj).await
     }
     pub async fn rx<O: DeserializeOwned>(&mut self) -> Result<O> {
         match self {
-            Channel::Tcp(st) => st.rx().await,
-            Channel::Unix(st) => st.rx().await,
-            Channel::EncryptedAny(st) => st.rx().await,
+            Channel::Tcp(st) => st.rx::<_, ReadFmt>().await,
+            Channel::Unix(st) => st.rx::<_, ReadFmt>().await,
+            Channel::EncryptedAny(st) => st.rx::<_, ReadFmt>().await,
             Channel::InsecureAny(st) => rx::<_, _, ReadFmt>(st).await,
             Channel::InsecureTcp(st) => rx::<_, _, ReadFmt>(st).await,
             Channel::InsecureUnix(st) => rx::<_, _, ReadFmt>(st).await,
-            Channel::__InternalPhantomData__(_) => unsafe { core::hint::unreachable_unchecked() },
+            Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }
     pub async fn receive<O: DeserializeOwned>(&mut self) -> Result<O> {
@@ -116,7 +119,7 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
             Channel::InsecureTcp(s) => s.into(),
             Channel::InsecureUnix(s) => s.into(),
             Channel::InsecureAny(s) => s.into(),
-            Channel::__InternalPhantomData__(_) => unsafe { core::hint::unreachable_unchecked() },
+            Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }
     pub fn bare(self) -> BareChannel {
@@ -127,7 +130,7 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
             Channel::InsecureTcp(s) => s.into(),
             Channel::InsecureUnix(s) => s.into(),
             Channel::InsecureAny(s) => s.into(),
-            Channel::__InternalPhantomData__(_) => unsafe { core::hint::unreachable_unchecked() },
+            Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }
 }

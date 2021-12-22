@@ -1,4 +1,3 @@
-
 use std::marker::PhantomData;
 
 use serde::Serialize;
@@ -23,9 +22,13 @@ pub trait ReadFormat {
 pub trait Format: SendFormat + ReadFormat {}
 
 impl SendFormat for Bincode {
-
     fn serialize<O: Serialize>(obj: &O) -> crate::Result<Vec<u8>> {
-        let obj = bincode::serialize(obj).or_else(|e| err!((invalid_data, e)))?;
+        // use bincode::Options;
+        // let obj = bincode::options()
+        //     .serialize(obj)
+        //     .or_else(|e| err!((invalid_data, e)))?;
+        let obj = bincode::serialize(obj)
+            .or_else(|e| err!((invalid_data, e)))?;
         Ok(obj)
     }
 }
@@ -34,6 +37,11 @@ impl ReadFormat for Bincode {
     where
         T: serde::de::Deserialize<'a>,
     {
+        // use bincode::Options;
+        // bincode::options()
+        //     .deserialize(bytes)
+        //     .or_else(|e| err!((invalid_data, e)))
+
         bincode::deserialize(bytes).or_else(|e| err!((invalid_data, e)))
     }
 }

@@ -1,10 +1,11 @@
+pub use igcp::sia::Status;
+
 use std::sync::Arc;
 
 use camino::Utf8Path;
 use dashmap::DashMap;
 use igcp::{err, BareChannel, Channel};
 use once_cell::sync::Lazy;
-use serde::{Deserialize, Serialize};
 
 use crate::runtime::spawn;
 use crate::service::{Service, Svc};
@@ -18,13 +19,6 @@ pub struct Route(DashMap<RouteKey, Storable>);
 enum Storable {
     Route(Arc<Route>),
     Service(Svc),
-}
-
-#[derive(Serialize, Deserialize)]
-// used for discovery
-pub enum Status {
-    Found,
-    NotFound,
 }
 
 pub trait RegisterEndpoint {
@@ -54,7 +48,10 @@ impl Route {
     pub fn remove_service<T: Service>(&self) -> Result<()> {
         match self.0.remove(T::ENDPOINT) {
             Some(_) => Ok(()),
-            None => err!((not_found, format!("service `{}` doesn't exist", T::ENDPOINT))),
+            None => err!((
+                not_found,
+                format!("service `{}` doesn't exist", T::ENDPOINT)
+            )),
         }
     }
     pub fn remove_route<T: Register>(&self) -> Result<()> {
@@ -66,7 +63,10 @@ impl Route {
     pub fn remove_at(&self, at: &str) -> Result<()> {
         match self.0.remove(at) {
             Some(_) => Ok(()),
-            None => err!((not_found, format!("route or service `{}` doesn't exist", at))),
+            None => err!((
+                not_found,
+                format!("route or service `{}` doesn't exist", at)
+            )),
         }
     }
     pub fn add_route_at(&self, at: &str, route: impl Into<Arc<Route>>) -> Result<()> {
@@ -83,6 +83,9 @@ impl Route {
     }
     pub fn register_route<T: Register>(&self, meta: T::Meta) -> Result<()> {
         self.register_route_at::<T>(T::ENDPOINT, meta)
+    }
+    pub fn register<T: Register>(&self, meta: T::Meta) -> Result<()> {
+        T::register(self, meta)
     }
     pub(crate) fn introduce_static(&'static self, c: BareChannel) {
         let mut c: Channel = c.into();
@@ -189,4 +192,17 @@ impl Route {
             }
         }
     }
+    pub fn show(&self) {
+        for i in &self.0 {
+            match i.value() {
+                &Storable::Route(_) => {
+                    println!("Route({:?})", i.key());
+                },
+                &Storable::Service(_) => {
+                    println!("Service({:?})", i.key());
+                },
+            }
+        }
+    }
 }
+

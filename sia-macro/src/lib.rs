@@ -45,6 +45,7 @@ macro_rules! panic_span {
 /// ```
 #[proc_macro_attribute]
 pub fn service(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
+
     let mut item = syn::parse_macro_input!(tokens as ItemFn);
     let vis = &item.vis;
 
@@ -176,7 +177,8 @@ pub fn main(_: TokenStream, item: TokenStream) -> TokenStream {
             #input
             ::sia::runtime::block_on(main())
         }
-    ).into()
+    )
+    .into()
 }
 
 fn struct_route(attrs: TokenStream, item: ItemStruct) -> TokenStream {
@@ -220,7 +222,7 @@ fn impl_route(_attrs: TokenStream, mut item: ItemImpl) -> TokenStream {
             )*
 
 
-            impl ::sia::routes::Register for MyCounter {
+            impl ::sia::routes::Register for #name {
                 type Meta = ::std::sync::Arc<Self>;
                 fn register(top_route: &::sia::routes::Route, meta: Self::Meta) -> ::sia::Result<()> {
                     #(

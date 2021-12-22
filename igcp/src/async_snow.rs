@@ -2,8 +2,8 @@ use serde::{de::DeserializeOwned, Serialize};
 use snow::{params::*, TransportState};
 
 use crate::io::{ReadExt, WriteExt};
-use crate::serialization::formats::Bincode;
-use crate::serialization::{rx, tx};
+use crate::serialization::formats::{Bincode, ReadFormat, SendFormat};
+use crate::serialization::{rx, tx, zc};
 use crate::Result;
 use crate::{err, ReadWrite};
 
@@ -67,11 +67,6 @@ impl<T: ReadWrite + Unpin> Snow<T> {
                     .read_message(&rx::<_, Vec<u8>, Bincode>(&mut stream).await?, &mut buf)
                     .or_else(|e| err!((other, e)))?;
 
-                // -> s, se
-                // let len = handshake.write_message(&[], &mut buf)
-                //     .or_else(|e| err!((other, e)))?;
-                // tx::<_, _, Bincode>(&mut stream, &buf[..len]).await?;
-
                 let transport = handshake
                     .into_transport_mode()
                     .or_else(|e| err!((other, e)))?;
@@ -79,8 +74,6 @@ impl<T: ReadWrite + Unpin> Snow<T> {
                 Ok(Snow { stream, transport })
             }
             false => {
-                // println!("respond");
-
                 let mut handshake = builder.build_responder().or_else(|e| err!((other, e)))?;
 
                 // <- e
@@ -94,41 +87,19 @@ impl<T: ReadWrite + Unpin> Snow<T> {
                     .or_else(|e| err!((other, e)))?;
                 tx::<_, _, Bincode>(&mut stream, &buf[..len]).await?;
 
-                // <- s, se
-                // handshake.read_message(&rx::<_, Vec<u8>, Bincode>(&mut stream).await?, &mut buf)?;
-
                 // Transition the state machine into transport mode now that the handshake is complete.
                 let transport = handshake
                     .into_transport_mode()
                     .or_else(|e| err!((other, e)))?;
 
-                // handshake.read_message(&rx::<_, Vec<u8>, Bincode>(&mut stream).await?, &mut buf)
-                //     .or_else(|e| err!((other, e)))?;
-                // let len = handshake.write_message(&[], &mut buf)
-                //     .or_else(|e| err!((other, e)))?;
-                // tx::<_, _, Bincode>(&mut stream, &buf[..len]).await?;
-                // handshake.read_message(&rx::<_, Vec<u8>, Bincode>(&mut stream).await?, &mut buf)
-                //     .or_else(|e| err!((other, e)))?;
-                // let transport = handshake.into_transport_mode()
-                //     .or_else(|e| err!((other, e)))?;
-
                 Ok(Snow { stream, transport })
             }
         }
     }
-    pub async fn rx<O: DeserializeOwned>(&mut self) -> Result<O> {
-        let mut size = [0u8; 8];
-        self.stream.read_exact(&mut size).await?;
-        let size = u64::from_be_bytes(size);
-        let mut buf = Vec::new();
+    pub async fn rx<O: DeserializeOwned, F: ReadFormat>(&mut self) -> Result<O> {
+        let size = zc::read_u32(&mut self.stream).await?;
 
-        buf.try_reserve(size as usize).or_else(|e| {
-            err!((
-                out_of_memory,
-                format!("failed to reserve {:?} bytes, error: {:?}", size, e)
-            ))
-        })?;
-        buf.resize(size as usize, 0);
+        let mut buf = zc::try_vec(size as _)?;
 
         self.stream.read_exact(&mut buf).await?;
 
@@ -136,13 +107,16 @@ impl<T: ReadWrite + Unpin> Snow<T> {
         self.transport
             .read_message(&buf, &mut msg)
             .or_else(|e| err!((other, e)))?;
-        bincode::deserialize(&msg).or_else(|e| err!((invalid_data, e)))
+
+        F::deserialize(&msg)
     }
-    pub async fn tx<O: Serialize>(&mut self, obj: O) -> Result<usize> {
+    pub async fn tx<O: Serialize, F: SendFormat>(&mut self, obj: O) -> Result<usize> {
         // serialize or return invalid data error
-        let vec = bincode::serialize(&obj).or_else(|e| err!((invalid_data, e)))?;
+        let vec = F::serialize(&obj)?;
+
         // get length from serialized object
         let len = vec.len();
+
         // create message buffer
         let mut msg = vec![0u8; len + 16];
         // encrypt into message buffer
@@ -150,11 +124,9 @@ impl<T: ReadWrite + Unpin> Snow<T> {
             .write_message(&vec, &mut msg)
             .map_err(|e| err!(invalid_data, e))?;
 
-        self.stream
-            .write(&u64::to_be_bytes(msg.len() as u64))
-            .await?;
-        let res = self.stream.write(&msg).await?;
+        zc::send_u32(&mut self.stream, msg.len() as _).await?;
+        self.stream.write_all(&msg).await?;
         self.stream.flush().await?;
-        Ok(res)
+        Ok(msg.len())
     }
 }

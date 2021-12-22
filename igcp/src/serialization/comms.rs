@@ -1,11 +1,11 @@
 use crate::Result;
 use crate::{
-    err,
     io::{Read, ReadExt, Write, WriteExt},
 };
 use serde::{de::DeserializeOwned, Serialize};
 
 use super::formats::{ReadFormat, SendFormat};
+use super::zc;
 
 pub async fn tx<T, O, F: SendFormat>(st: &mut T, obj: O) -> Result<usize>
 where
@@ -13,12 +13,11 @@ where
     O: Serialize,
 {
     let serialized = F::serialize(&obj)?;
-    let len: [u8; 4] = u32::to_be_bytes(serialized.len() as u32);
-    st.write(&len).await?;
+    zc::send_u32(st, serialized.len() as u32).await?;
     // return length of object sent
-    let len = st.write(&serialized).await?;
+    st.write_all(&serialized).await?;
     st.flush().await?;
-    Ok(len)
+    Ok(serialized.len())
 }
 
 pub async fn rx<T, O, F: ReadFormat>(st: &mut T) -> Result<O>
@@ -26,23 +25,12 @@ where
     T: Read + Unpin,
     O: DeserializeOwned,
 {
-    let mut size_buffer = [0u8; 4];
-    st.read_exact(&mut size_buffer).await?;
-    let size = u32::from_be_bytes(size_buffer);
-
+    let size = zc::read_u32(st).await?;
     // this is done for fallibility, we don't want people sending in usize::MAX
     // as the len unexpectedly crashing the program
-    let mut buf = Vec::new();
-    buf.try_reserve(size as usize).or_else(|e| {
-        err!((
-            out_of_memory,
-            format!("failed to reserve {:?} bytes, error: {:?}", size, e)
-        ))
-    })?;
+    let mut buf = zc::try_vec(size as usize)?;
     buf.resize(size as usize, 0);
     // read message into buffer
     st.read_exact(&mut buf).await?;
     F::deserialize(&buf)
 }
-
-

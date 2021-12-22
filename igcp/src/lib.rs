@@ -1,6 +1,3 @@
-
-#![feature(generic_const_exprs)]
-
 ///! IGCP | intergalactic communications protocol
 ///!
 ///! IGCP is designed to abstract over streams or low-level communication protocols.
@@ -14,8 +11,8 @@ mod channel;
 mod err;
 mod io;
 pub mod serialization;
+pub mod sia;
 pub mod type_iter;
-mod sia;
 
 pub use addr::Addr;
 pub use channel::*;

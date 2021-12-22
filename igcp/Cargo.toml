@@ -11,6 +11,7 @@ derive_more = "0.99"
 
 # serde
 serde = { version = "1", features = [ "derive" ] }
+serde_repr = "0.1"
 
 # formats
 bincode = { version = "1" }
