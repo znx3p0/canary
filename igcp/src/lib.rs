@@ -8,7 +8,7 @@
 mod addr;
 pub mod async_snow;
 mod channel;
-mod err;
+pub mod err;
 mod io;
 pub mod serialization;
 pub mod sia;
@@ -16,4 +16,5 @@ pub mod type_iter;
 
 pub use addr::Addr;
 pub use channel::*;
-pub use std::io::Result;
+pub use err::Result;
+pub use err::Error;

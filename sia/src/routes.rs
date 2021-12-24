@@ -1,3 +1,4 @@
+use compact_str::CompactStr;
 pub use igcp::sia::Status;
 
 use std::sync::Arc;
@@ -11,7 +12,7 @@ use crate::runtime::spawn;
 use crate::service::{Service, Svc};
 use crate::Result;
 
-type RouteKey = String;
+type RouteKey = CompactStr;
 
 #[derive(Default)]
 pub struct Route(DashMap<RouteKey, Storable>);
@@ -90,28 +91,28 @@ impl Route {
     pub(crate) fn introduce_static(&'static self, c: BareChannel) {
         let mut c: Channel = c.into();
         spawn(async move {
-            let id = match c.rx::<String>().await {
+            let id = match c.rx::<RouteKey>().await {
                 Ok(s) => s,
                 Err(e) => {
                     log::error!("found error receiving id of service: {:?}", &e);
                     err!((other, e))?
                 }
             };
-            self.introduce_service(id, c.bare()).await?;
-            Ok::<_, std::io::Error>(())
+            self.introduce_service(id.as_ref(), c.bare()).await?;
+            Ok::<_, igcp::Error>(())
         });
     }
 
     pub(crate) async fn introduce_static_unspawn(&'static self, c: BareChannel) -> Result<()> {
         let mut c: Channel = c.into();
-        let id = match c.rx::<String>().await {
+        let id = match c.rx::<RouteKey>().await {
             Ok(s) => s,
             Err(e) => {
                 log::error!("found error receiving id of service: {:?}", &e);
                 err!((other, e))?
             }
         };
-        self.introduce_service(id, c.bare()).await?;
+        self.introduce_service(id.as_ref(), c.bare()).await?;
         Ok(())
     }
 
@@ -133,7 +134,7 @@ impl Route {
         &self,
         id: impl AsRef<Utf8Path>,
         chan: BareChannel,
-    ) -> ::core::result::Result<(), (std::io::Error, BareChannel)> {
+    ) -> ::core::result::Result<(), (igcp::Error, BareChannel)> {
         let mut id = id.as_ref().into_iter();
         let first = match id.next() {
             Some(id) => id,

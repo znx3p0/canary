@@ -6,13 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# internal
-serde = { version = "1", features = [ "derive" ] }
+# internal communications
+serde = { version = "1", features = [ "derive", "rc" ] }
 bincode = { version = "1" }
 
 # routes
 dashmap = "5" # stable api
 once_cell = "1" # stable api
+compact_str = { version = "0.2", features = [ "serde" ] }
 
 # runtime
 async-std = { version = "1", features = [ "unstable" ], optional = true } # stable api

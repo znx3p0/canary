@@ -23,10 +23,7 @@ where
     Box::new(move |chan| {
         let s = s(meta.clone(), C::from(chan));
         spawn(async move {
-            match s.await {
-                Ok(_) => (),
-                Err(e) => log::error!("{:#?}", e),
-            };
+            s.await.ok();
         });
     })
 }

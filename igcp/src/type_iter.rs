@@ -3,7 +3,6 @@
 
 use std::marker::PhantomData;
 
-use async_std::io;
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
@@ -153,7 +152,7 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> MainChannel<T, Read
     pub async fn tx(
         mut self,
         obj: <T::Type as Transmit>::Type,
-    ) -> io::Result<MainChannel<T::Next, ReadFmt, SendFmt>>
+    ) -> crate::Result<MainChannel<T::Next, ReadFmt, SendFmt>>
     where
         T::Type: Transmit,
         <T as TypeIterT>::Next: TypeIterT,
@@ -164,7 +163,7 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> MainChannel<T, Read
     }
     pub async fn rx(
         mut self,
-    ) -> io::Result<(
+    ) -> crate::Result<(
         <T::Type as Receive>::Type,
         MainChannel<T::Next, ReadFmt, SendFmt>,
     )>
@@ -180,7 +179,7 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> MainChannel<T, Read
     pub fn coerce(self) -> Channel<ReadFmt, SendFmt> {
         self.1
     }
-    // pub async fn tx_str(mut self, obj: &str) -> io::Result<MainChannel<T::Next, ReadFmt, SendFmt>>
+    // pub async fn tx_str(mut self, obj: &str) -> crate::Result<MainChannel<T::Next, ReadFmt, SendFmt>>
     // where
     //     T::Type: Transmit + Str,
     //     <T as TypeIterT>::Next: TypeIterT,
@@ -224,7 +223,7 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> PeerChannel<T, Read
     pub async fn tx(
         mut self,
         obj: <T::Type as Receive>::Type,
-    ) -> io::Result<PeerChannel<T::Next, ReadFmt, SendFmt>>
+    ) -> crate::Result<PeerChannel<T::Next, ReadFmt, SendFmt>>
     where
         T::Type: Receive,
         <T as TypeIterT>::Next: TypeIterT,
@@ -236,7 +235,7 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> PeerChannel<T, Read
 
     pub async fn rx(
         mut self,
-    ) -> io::Result<(
+    ) -> crate::Result<(
         <T::Type as Transmit>::Type,
         PeerChannel<T::Next, ReadFmt, SendFmt>,
     )>
@@ -285,14 +284,14 @@ impl<T: TypeIterT> AutoTyped<T> {
     pub async fn tx<D: Serialize + Send + 'static>(
         mut self,
         s: D,
-    ) -> io::Result<AutoTyped<TypeIter<Tx<D>, T>>> {
+    ) -> crate::Result<AutoTyped<TypeIter<Tx<D>, T>>> {
         self.0.tx(s).await?;
         Ok(AutoTyped(self.0, PhantomData))
     }
     #[allow(unused)]
     pub async fn rx<D: DeserializeOwned + 'static>(
         mut self,
-    ) -> io::Result<(D, AutoTyped<TypeIter<Rx<D>, T>>)> {
+    ) -> crate::Result<(D, AutoTyped<TypeIter<Rx<D>, T>>)> {
         let p = self.0.rx().await?;
         Ok((p, AutoTyped(self.0, PhantomData)))
     }

@@ -11,7 +11,7 @@ use async_std::os::unix::net::UnixStream;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Addr {
     Tcp(SocketAddr),
     Unix(PathBuf),
