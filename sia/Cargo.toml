@@ -18,7 +18,7 @@ compact_str = { version = "0.2", features = [ "serde" ] }
 # runtime
 async-std = { version = "1", features = [ "unstable" ], optional = true } # stable api
 tokio = { version = "1", features = [ "rt-multi-thread", "macros", "time" ], optional = true } # stable api
-log = "0.4" # stable api
+tracing = "0.1" # stable api
 
 # ergonomics
 sia-macro = { path = "../sia-macro" }

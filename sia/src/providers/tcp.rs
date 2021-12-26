@@ -38,7 +38,7 @@ impl Tcp {
             match TcpStream::connect(&addrs).await {
                 Ok(s) => break s,
                 Err(e) => {
-                    log::error!(
+                    tracing::error!(
                         "connecting to address `{:?}` failed, attempt {} starting",
                         addrs,
                         attempt
@@ -99,7 +99,7 @@ impl InsecureTcp {
             match TcpStream::connect(&addrs).await {
                 Ok(s) => break s,
                 Err(e) => {
-                    log::error!(
+                    tracing::error!(
                         "connecting to address {:?} failed, attempt {} starting",
                         addrs,
                         attempt

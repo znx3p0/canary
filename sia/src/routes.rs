@@ -94,7 +94,7 @@ impl Route {
             let id = match c.rx::<RouteKey>().await {
                 Ok(s) => s,
                 Err(e) => {
-                    log::error!("found error receiving id of service: {:?}", &e);
+                    tracing::error!("found error receiving id of service: {:?}", &e);
                     err!((other, e))?
                 }
             };
@@ -108,7 +108,7 @@ impl Route {
         let id = match c.rx::<RouteKey>().await {
             Ok(s) => s,
             Err(e) => {
-                log::error!("found error receiving id of service: {:?}", &e);
+                tracing::error!("found error receiving id of service: {:?}", &e);
                 err!((other, e))?
             }
         };
@@ -193,17 +193,17 @@ impl Route {
             }
         }
     }
+    /// should only be used whenever debugging
     pub fn show(&self) {
         for i in &self.0 {
             match i.value() {
                 &Storable::Route(_) => {
-                    println!("Route({:?})", i.key());
-                },
+                    tracing::info!("Route({:?})", i.key());
+                }
                 &Storable::Service(_) => {
-                    println!("Service({:?})", i.key());
-                },
+                    tracing::info!("Service({:?})", i.key());
+                }
             }
         }
     }
 }
-

@@ -1,13 +1,13 @@
+use crate::Result;
 use compact_str::CompactStr;
-use igcp::{Channel, Error, err};
-use serde::{Serialize, Deserialize};
-use std::net::{SocketAddr};
+use igcp::{err, Channel, Error};
+use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
-use crate::Result;
 
-use super::{Tcp, Unix, InsecureTcp, InsecureUnix};
+use super::{InsecureTcp, InsecureUnix, Tcp, Unix};
 use crate::runtime::JoinHandle;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
@@ -25,8 +25,12 @@ impl ServiceAddr {
     pub fn new(addr: &str) -> Result<Self> {
         addr.parse()
     }
-    pub fn addr(&self) -> &Addr { &self.0 }
-    pub fn take_addr(self) -> Addr { self.0 }
+    pub fn addr(&self) -> &Addr {
+        &self.0
+    }
+    pub fn take_addr(self) -> Addr {
+        self.0
+    }
     pub async fn connect(&self) -> Result<Channel> {
         match &self.0 {
             Addr::Tcp(addrs) => Tcp::connect(addrs.as_ref(), &self.1).await,
@@ -71,40 +75,42 @@ impl FromStr for Addr {
     /// cluster://unix@a/address.sock
     fn from_str(s: &str) -> Result<Self> {
         let mut s = s.split("@");
-        let address_ty =  {
-            let protocol = s.next()
-                .ok_or(err!(invalid_input, "protocol not found"))?;
+        let address_ty = {
+            let protocol = s.next().ok_or(err!(invalid_input, "protocol not found"))?;
             match protocol {
                 "tcp" => AddressType::Tcp,
                 "itcp" => AddressType::InsecureTcp,
                 "unix" => AddressType::Unix,
                 "iunix" => AddressType::InsecureUnix,
-                protocol => err!((invalid_input, format!("unexpected protocol {:?}", protocol)))?
+                protocol => err!((invalid_input, format!("unexpected protocol {:?}", protocol)))?,
             }
         };
-        let addr = s.next()
-                .ok_or(err!(invalid_input, "address not found"))?;
+        let addr = s.next().ok_or(err!(invalid_input, "address not found"))?;
         Ok(match address_ty {
             AddressType::Tcp => {
-                let addr = addr.parse::<SocketAddr>()
+                let addr = addr
+                    .parse::<SocketAddr>()
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::Tcp(Arc::new(addr))
-            },
+            }
             AddressType::Unix => {
-                let addr = addr.parse::<PathBuf>()
+                let addr = addr
+                    .parse::<PathBuf>()
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::Unix(Arc::new(addr))
-            },
+            }
             AddressType::InsecureTcp => {
-                let addr = addr.parse::<SocketAddr>()
+                let addr = addr
+                    .parse::<SocketAddr>()
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::InsecureTcp(Arc::new(addr))
-            },
+            }
             AddressType::InsecureUnix => {
-                let addr = addr.parse::<PathBuf>()
+                let addr = addr
+                    .parse::<PathBuf>()
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::InsecureUnix(Arc::new(addr))
-            },
+            }
         })
     }
 }
@@ -116,55 +122,59 @@ impl FromStr for ServiceAddr {
     /// cluster://tcp@127.0.0.1:8080
     fn from_str(s: &str) -> Result<Self> {
         let mut s = s.split("://");
-        let id = s.next()
+        let id = s
+            .next()
             .ok_or(err!(invalid_input, "id of service not found"))?;
         let id = CompactStr::new_inline(id);
 
-        let mut s = s.next()
+        let mut s = s
+            .next()
             .ok_or(err!(invalid_input, "id of service not found"))?
             .split("@");
-        let address_ty =  {
-            let protocol = s.next()
-                .ok_or(err!(invalid_input, "protocol not found"))?;
+        let address_ty = {
+            let protocol = s.next().ok_or(err!(invalid_input, "protocol not found"))?;
             match protocol {
                 "tcp" => AddressType::Tcp,
                 "itcp" => AddressType::InsecureTcp,
                 "unix" => AddressType::Unix,
                 "iunix" => AddressType::InsecureUnix,
-                protocol => err!((invalid_input, format!("unexpected protocol {:?}", protocol)))?
+                protocol => err!((invalid_input, format!("unexpected protocol {:?}", protocol)))?,
             }
         };
-        let addr = s.next()
-                .ok_or(err!(invalid_input, "address not found"))?;
+        let addr = s.next().ok_or(err!(invalid_input, "address not found"))?;
         let addr = match address_ty {
             AddressType::Tcp => {
-                let addr = addr.parse::<SocketAddr>()
+                let addr = addr
+                    .parse::<SocketAddr>()
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::Tcp(Arc::new(addr))
-            },
+            }
             AddressType::Unix => {
-                let addr = addr.parse::<PathBuf>()
+                let addr = addr
+                    .parse::<PathBuf>()
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::Unix(Arc::new(addr))
-            },
+            }
             AddressType::InsecureTcp => {
-                let addr = addr.parse::<SocketAddr>()
+                let addr = addr
+                    .parse::<SocketAddr>()
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::InsecureTcp(Arc::new(addr))
-            },
+            }
             AddressType::InsecureUnix => {
-                let addr = addr.parse::<PathBuf>()
+                let addr = addr
+                    .parse::<PathBuf>()
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::InsecureUnix(Arc::new(addr))
-            },
+            }
         };
         Ok(ServiceAddr(addr, id))
     }
 }
 
-
 enum AddressType {
-    Tcp, Unix, InsecureTcp, InsecureUnix
+    Tcp,
+    Unix,
+    InsecureTcp,
+    InsecureUnix,
 }
-
-

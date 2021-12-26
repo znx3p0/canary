@@ -45,7 +45,6 @@ macro_rules! panic_span {
 /// ```
 #[proc_macro_attribute]
 pub fn service(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
-
     let mut item = syn::parse_macro_input!(tokens as ItemFn);
     let vis = &item.vis;
 

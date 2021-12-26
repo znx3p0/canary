@@ -1,6 +1,6 @@
 use std::future::Future;
 
-use crate::runtime::spawn;
+use crate::runtime::{self, spawn};
 use igcp::BareChannel;
 
 pub type Svc = Box<dyn Fn(BareChannel) + Send + Sync + 'static>;
@@ -10,6 +10,12 @@ pub trait Service {
     type Pipeline;
     type Meta;
     fn service(meta: Self::Meta) -> Svc;
+}
+
+pub trait StaticService {
+    type Meta: Send + Sync + 'static;
+    type Chan: From<BareChannel>;
+    fn introduce(meta: Self::Meta, c: Self::Chan) -> runtime::JoinHandle<crate::Result<()>>;
 }
 
 pub fn run_metadata<M, T, X, C>(meta: M, s: X) -> Svc

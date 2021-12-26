@@ -16,5 +16,5 @@ pub mod type_iter;
 
 pub use addr::Addr;
 pub use channel::*;
-pub use err::Result;
 pub use err::Error;
+pub use err::Result;

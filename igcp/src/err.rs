@@ -152,10 +152,12 @@ macro_rules! err {
     };
 }
 
-
-use std::{io::ErrorKind, fmt::{Display, Debug}};
-use serde::{Serialize, Deserialize, ser::SerializeTuple};
-use serde_repr::{Serialize_repr, Deserialize_repr};
+use serde::{ser::SerializeTuple, Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
+use std::{
+    fmt::{Debug, Display},
+    io::ErrorKind,
+};
 
 pub type Result<T> = ::std::result::Result<T, Error>;
 
@@ -202,7 +204,7 @@ impl std::error::Error for Error {
 impl Serialize for Error {
     fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
     where
-        S: serde::Serializer
+        S: serde::Serializer,
     {
         let string = self.0.to_string();
         let mut tuple = serializer.serialize_tuple(2)?;
@@ -216,7 +218,7 @@ impl Serialize for Error {
 impl<'de> Deserialize<'de> for Error {
     fn deserialize<D>(deserializer: D) -> ::std::result::Result<Self, D::Error>
     where
-        D: serde::Deserializer<'de>
+        D: serde::Deserializer<'de>,
     {
         let (error, kind) = <(String, ErrorKindSer)>::deserialize(deserializer)?;
         Ok(Error(std::io::Error::new(kind.into(), error)))
@@ -324,6 +326,3 @@ impl From<ErrorKind> for ErrorKindSer {
         }
     }
 }
-
-
-

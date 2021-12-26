@@ -1,6 +1,6 @@
+mod addr;
 mod tcp;
 mod unix;
-mod addr;
 
 pub use addr::*;
 pub use tcp::*;

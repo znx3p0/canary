@@ -39,7 +39,7 @@ impl Unix {
             match UnixStream::connect(&addrs).await {
                 Ok(s) => break s,
                 Err(e) => {
-                    log::error!(
+                    tracing::error!(
                         "connecting to address {:?} failed, attempt {} starting",
                         addrs,
                         attempt
@@ -80,7 +80,7 @@ impl Unix {
 pub struct InsecureUnix(UnixListener);
 
 impl InsecureUnix {
-    pub async fn bind(addrs:impl AsRef<Path>) -> Result<JoinHandle<Result<()>>> {
+    pub async fn bind(addrs: impl AsRef<Path>) -> Result<JoinHandle<Result<()>>> {
         let listener = UnixListener::bind(addrs).await?;
         Ok(runtime::spawn(async move {
             loop {
@@ -100,7 +100,7 @@ impl InsecureUnix {
             match UnixStream::connect(&addrs).await {
                 Ok(s) => break s,
                 Err(e) => {
-                    log::error!(
+                    tracing::error!(
                         "connecting to address {:?} failed, attempt {} starting",
                         addrs,
                         attempt

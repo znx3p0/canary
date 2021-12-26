@@ -27,8 +27,7 @@ impl SendFormat for Bincode {
         // let obj = bincode::options()
         //     .serialize(obj)
         //     .or_else(|e| err!((invalid_data, e)))?;
-        let obj = bincode::serialize(obj)
-            .or_else(|e| err!((invalid_data, e)))?;
+        let obj = bincode::serialize(obj).or_else(|e| err!((invalid_data, e)))?;
         Ok(obj)
     }
 }
@@ -41,7 +40,6 @@ impl ReadFormat for Bincode {
         // bincode::options()
         //     .deserialize(bytes)
         //     .or_else(|e| err!((invalid_data, e)))
-
         bincode::deserialize(bytes).or_else(|e| err!((invalid_data, e)))
     }
 }

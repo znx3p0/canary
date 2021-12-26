@@ -1,7 +1,5 @@
+use crate::io::{Read, ReadExt, Write, WriteExt};
 use crate::Result;
-use crate::{
-    io::{Read, ReadExt, Write, WriteExt},
-};
 use serde::{de::DeserializeOwned, Serialize};
 
 use super::formats::{ReadFormat, SendFormat};

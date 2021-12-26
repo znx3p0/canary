@@ -19,7 +19,7 @@ pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
 /// agnostic channel that can be used for local or remote communication.
 ///
 /// do note that channels cannot send messages over u32::MAX length,
-/// and encrypted messages have a max length of 65511 bytes.
+/// and encrypted messages have a max length of 65511 bytes at the moment.
 ///
 /// ```norun
 /// async fn send_random(mut chan: Channel) -> Result<()> {
