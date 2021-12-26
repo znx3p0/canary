@@ -7,8 +7,8 @@
     - [Routes](./concepts/routes.md)
     - [Providers](./concepts/providers.md)
 - [Examples](./examples.md)
-    - [Consensus Algorithm]()
     - [RPC System]()
-    - [Distributed Key-Value Store]()
+    - [Pub-Sub Server]()
+    - [Key-Value In-Memory Database]()
     - [Final Challenge](./examples/final_challenge.md)
 

@@ -35,5 +35,6 @@ async fn counter_service(counter: Arc<AtomicU64>, mut peer: Channel) -> Result<(
 }
 ```
 
-These services can be registered on a route and exposed through a provider.
+These services can be registered on a route and exposed through a provider,
+and they are designed to be embarrasingly parallel.
 
