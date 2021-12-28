@@ -1,6 +1,6 @@
 [package]
 name = "igcp"
-version = "0.0.2"
+version = "0.0.4"
 edition = "2021"
 
 repository = "https://github.com/znx3p0/sia"

@@ -1,6 +1,6 @@
 [package]
 name = "sia"
-version = "0.0.3"
+version = "0.0.4"
 edition = "2021"
 
 repository = "https://github.com/znx3p0/sia"
@@ -29,7 +29,7 @@ tracing = "0.1" # stable api
 sia-macro = { path = "../sia-macro", version = "0.0.2" }
 
 # communications
-igcp = { path = "../igcp", version = "0.0.2" }
+igcp = { path = "../igcp", version = "0.0.4" }
 
 # compile time
 derive_more = "0.99" # stable api
