@@ -1,3 +1,5 @@
+#![cfg(unix)]
+
 use std::fmt::Debug;
 
 use crate::routes::Status;

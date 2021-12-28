@@ -4,7 +4,11 @@ use serde::Serialize;
 use std::marker::PhantomData;
 
 use crate::async_snow::Snow;
-use crate::io::{Read, TcpStream, UnixStream, Write};
+use crate::io::{Read, TcpStream, Write};
+
+#[cfg(unix)]
+use crate::io::UnixStream;
+
 
 use crate::serialization::formats::{Any, Bincode, Bson, Json, Postcard, ReadFormat, SendFormat};
 use crate::serialization::{rx, tx};
@@ -29,11 +33,15 @@ pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
 /// ```
 pub enum Channel<ReadFmt: ReadFormat = Bincode, SendFmt: SendFormat = Bincode> {
     Tcp(Snow<TcpStream>),
-    Unix(Snow<UnixStream>),
     EncryptedAny(Snow<Box<dyn ReadWrite>>),
     InsecureTcp(TcpStream),
-    InsecureUnix(UnixStream),
     InsecureAny(Box<dyn ReadWrite>),
+
+    #[cfg(unix)]
+    Unix(Snow<UnixStream>),
+    #[cfg(unix)]
+    InsecureUnix(UnixStream),
+
     #[allow(non_camel_case_types)] // Infallible makes sure that this value cannot be constructed
     __InternalPhantomData__((PhantomData<(ReadFmt, SendFmt)>, core::convert::Infallible)),
 }
@@ -41,22 +49,28 @@ pub enum Channel<ReadFmt: ReadFormat = Bincode, SendFmt: SendFormat = Bincode> {
 #[derive(From)]
 pub enum BareChannel {
     Tcp(Snow<TcpStream>),
-    Unix(Snow<UnixStream>),
     EncryptedAny(Snow<Box<dyn ReadWrite>>),
     InsecureTcp(TcpStream),
-    InsecureUnix(UnixStream),
     InsecureAny(Box<dyn ReadWrite>),
+
+    #[cfg(unix)]
+    Unix(Snow<UnixStream>),
+    #[cfg(unix)]
+    InsecureUnix(UnixStream),
 }
 
 impl<R: ReadFormat, S: SendFormat> From<BareChannel> for Channel<R, S> {
     fn from(c: BareChannel) -> Self {
         match c {
             BareChannel::Tcp(s) => s.into(),
-            BareChannel::Unix(s) => s.into(),
             BareChannel::EncryptedAny(s) => s.into(),
             BareChannel::InsecureTcp(s) => s.into(),
-            BareChannel::InsecureUnix(s) => s.into(),
             BareChannel::InsecureAny(s) => s.into(),
+
+            #[cfg(unix)]
+            BareChannel::Unix(s) => s.into(),
+            #[cfg(unix)]
+            BareChannel::InsecureUnix(s) => s.into(),
         }
     }
 }
@@ -68,6 +82,7 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
     pub async fn new_tcp_encrypted(stream: TcpStream) -> Result<Self> {
         Ok(Snow::new(stream).await?.into())
     }
+    #[cfg(unix)]
     pub async fn new_unix_encrypted(stream: UnixStream) -> Result<Self> {
         Ok(Snow::new(stream).await?.into())
     }
@@ -79,10 +94,13 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
     pub async fn tx<O: Serialize>(&mut self, obj: O) -> Result<usize> {
         match self {
             Channel::Tcp(st) => st.tx::<_, SendFmt>(obj).await,
-            Channel::Unix(st) => st.tx::<_, SendFmt>(obj).await,
             Channel::EncryptedAny(st) => st.tx::<_, SendFmt>(obj).await,
             Channel::InsecureAny(st) => tx::<_, _, SendFmt>(st, obj).await,
             Channel::InsecureTcp(st) => tx::<_, _, SendFmt>(st, obj).await,
+
+            #[cfg(unix)]
+            Channel::Unix(st) => st.tx::<_, SendFmt>(obj).await,
+            #[cfg(unix)]
             Channel::InsecureUnix(st) => tx::<_, _, SendFmt>(st, obj).await,
             Channel::__InternalPhantomData__(_) => unreachable!(),
         }
@@ -94,11 +112,15 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
     pub async fn rx<O: DeserializeOwned>(&mut self) -> Result<O> {
         match self {
             Channel::Tcp(st) => st.rx::<_, ReadFmt>().await,
-            Channel::Unix(st) => st.rx::<_, ReadFmt>().await,
             Channel::EncryptedAny(st) => st.rx::<_, ReadFmt>().await,
             Channel::InsecureAny(st) => rx::<_, _, ReadFmt>(st).await,
             Channel::InsecureTcp(st) => rx::<_, _, ReadFmt>(st).await,
+
+            #[cfg(unix)]
+            Channel::Unix(st) => st.rx::<_, ReadFmt>().await,
+            #[cfg(unix)]
             Channel::InsecureUnix(st) => rx::<_, _, ReadFmt>(st).await,
+
             Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }
@@ -114,22 +136,30 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
     pub fn coerce<R: ReadFormat, S: SendFormat>(self) -> Channel<R, S> {
         match self {
             Channel::Tcp(s) => s.into(),
-            Channel::Unix(s) => s.into(),
             Channel::EncryptedAny(s) => s.into(),
             Channel::InsecureTcp(s) => s.into(),
-            Channel::InsecureUnix(s) => s.into(),
             Channel::InsecureAny(s) => s.into(),
+
+            #[cfg(unix)]
+            Channel::Unix(s) => s.into(),
+            #[cfg(unix)]
+            Channel::InsecureUnix(s) => s.into(),
+
             Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }
     pub fn bare(self) -> BareChannel {
         match self {
             Channel::Tcp(s) => s.into(),
-            Channel::Unix(s) => s.into(),
             Channel::EncryptedAny(s) => s.into(),
             Channel::InsecureTcp(s) => s.into(),
-            Channel::InsecureUnix(s) => s.into(),
             Channel::InsecureAny(s) => s.into(),
+
+            #[cfg(unix)]
+            Channel::Unix(s) => s.into(),
+            #[cfg(unix)]
+            Channel::InsecureUnix(s) => s.into(),
+
             Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }

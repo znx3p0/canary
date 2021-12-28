@@ -7,14 +7,18 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use super::{InsecureTcp, InsecureUnix, Tcp, Unix};
+use super::{InsecureTcp, Tcp};
+#[cfg(unix)]
+use super::{InsecureUnix, Unix};
 use crate::runtime::JoinHandle;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 pub enum Addr {
     Tcp(Arc<SocketAddr>),
+    #[cfg(unix)]
     Unix(Arc<PathBuf>),
     InsecureTcp(Arc<SocketAddr>),
+    #[cfg(unix)]
     InsecureUnix(Arc<PathBuf>),
 }
 
@@ -34,9 +38,12 @@ impl ServiceAddr {
     pub async fn connect(&self) -> Result<Channel> {
         match &self.0 {
             Addr::Tcp(addrs) => Tcp::connect(addrs.as_ref(), &self.1).await,
-            Addr::Unix(addrs) => Unix::connect(addrs.as_ref(), &self.1).await,
-            Addr::InsecureUnix(addrs) => InsecureUnix::connect(addrs.as_ref(), &self.1).await,
             Addr::InsecureTcp(addrs) => InsecureTcp::connect(addrs.as_ref(), &self.1).await,
+
+            #[cfg(unix)]
+            Addr::Unix(addrs) => Unix::connect(addrs.as_ref(), &self.1).await,
+            #[cfg(unix)]
+            Addr::InsecureUnix(addrs) => InsecureUnix::connect(addrs.as_ref(), &self.1).await,
         }
     }
 }
@@ -51,17 +58,21 @@ impl Addr {
     pub async fn bind(&self) -> Result<JoinHandle<Result<()>>> {
         match self {
             Addr::Tcp(addrs) => Tcp::bind(addrs.as_ref()).await,
-            Addr::Unix(addrs) => Unix::bind(addrs.as_ref()).await,
-            Addr::InsecureUnix(addrs) => InsecureUnix::bind(addrs.as_ref()).await,
             Addr::InsecureTcp(addrs) => InsecureTcp::bind(addrs.as_ref()).await,
+            #[cfg(unix)]
+            Addr::Unix(addrs) => Unix::bind(addrs.as_ref()).await,
+            #[cfg(unix)]
+            Addr::InsecureUnix(addrs) => InsecureUnix::bind(addrs.as_ref()).await,
         }
     }
     pub async fn connect(&self, id: &str) -> Result<Channel> {
         match self {
             Addr::Tcp(addrs) => Tcp::connect(addrs.as_ref(), id).await,
-            Addr::Unix(addrs) => Unix::connect(addrs.as_ref(), id).await,
-            Addr::InsecureUnix(addrs) => InsecureUnix::connect(addrs.as_ref(), id).await,
             Addr::InsecureTcp(addrs) => InsecureTcp::connect(addrs.as_ref(), id).await,
+            #[cfg(unix)]
+            Addr::Unix(addrs) => Unix::connect(addrs.as_ref(), id).await,
+            #[cfg(unix)]
+            Addr::InsecureUnix(addrs) => InsecureUnix::connect(addrs.as_ref(), id).await,
         }
     }
 }
@@ -80,8 +91,14 @@ impl FromStr for Addr {
             match protocol {
                 "tcp" => AddressType::Tcp,
                 "itcp" => AddressType::InsecureTcp,
+                #[cfg(unix)]
                 "unix" => AddressType::Unix,
+                #[cfg(unix)]
                 "iunix" => AddressType::InsecureUnix,
+                #[cfg(not(unix))]
+                "unix" => err!((unsupported, "Unix is not supported on non-unix targets"))?,
+                #[cfg(not(unix))]
+                "iunix" => err!((unsupported, "Unix is not supported on non-unix targets"))?,
                 protocol => err!((invalid_input, format!("unexpected protocol {:?}", protocol)))?,
             }
         };
@@ -93,6 +110,7 @@ impl FromStr for Addr {
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::Tcp(Arc::new(addr))
             }
+            #[cfg(unix)]
             AddressType::Unix => {
                 let addr = addr
                     .parse::<PathBuf>()
@@ -105,6 +123,7 @@ impl FromStr for Addr {
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::InsecureTcp(Arc::new(addr))
             }
+            #[cfg(unix)]
             AddressType::InsecureUnix => {
                 let addr = addr
                     .parse::<PathBuf>()
@@ -136,8 +155,14 @@ impl FromStr for ServiceAddr {
             match protocol {
                 "tcp" => AddressType::Tcp,
                 "itcp" => AddressType::InsecureTcp,
+                #[cfg(unix)]
                 "unix" => AddressType::Unix,
+                #[cfg(unix)]
                 "iunix" => AddressType::InsecureUnix,
+                #[cfg(not(unix))]
+                "unix" => err!((unsupported, "Unix is not supported on non-unix targets"))?,
+                #[cfg(not(unix))]
+                "iunix" => err!((unsupported, "Unix is not supported on non-unix targets"))?,
                 protocol => err!((invalid_input, format!("unexpected protocol {:?}", protocol)))?,
             }
         };
@@ -149,6 +174,7 @@ impl FromStr for ServiceAddr {
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::Tcp(Arc::new(addr))
             }
+            #[cfg(unix)]
             AddressType::Unix => {
                 let addr = addr
                     .parse::<PathBuf>()
@@ -161,6 +187,7 @@ impl FromStr for ServiceAddr {
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::InsecureTcp(Arc::new(addr))
             }
+            #[cfg(unix)]
             AddressType::InsecureUnix => {
                 let addr = addr
                     .parse::<PathBuf>()
@@ -174,7 +201,9 @@ impl FromStr for ServiceAddr {
 
 enum AddressType {
     Tcp,
-    Unix,
     InsecureTcp,
+    #[cfg(unix)]
+    Unix,
+    #[cfg(unix)]
     InsecureUnix,
 }
