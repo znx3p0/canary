@@ -4,6 +4,7 @@ Sia is a distributed systems and communications framework, focusing on minimalis
 Development of Sia utilizes cargo workspaces.
 
 [Book](https://znx3p0.github.io/sia-book/)
+
 Sister crates include:
 - [SRPC](https://github.com/znx3p0/srpc)
 - IGCP
