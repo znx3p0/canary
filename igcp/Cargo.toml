@@ -21,4 +21,4 @@ postcard = { version = "0.7.2", features = [ "alloc" ] }
 
 # encryption
 snow = "0.8.0" # api may change
-fastrand = "1"
+rand = "0.8"

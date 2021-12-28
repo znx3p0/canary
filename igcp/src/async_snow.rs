@@ -28,7 +28,7 @@ impl<T: ReadWrite + Unpin> Snow<T> {
         // The lowest number is the responder
 
         let should_init = loop {
-            let local_num = fastrand::u64(0..100_000);
+            let local_num = rand::random::<u64>();
             tx::<_, _, Bincode>(&mut stream, local_num).await?;
             let peer_num = rx::<_, _, Bincode>(&mut stream).await?;
             if local_num == peer_num {
