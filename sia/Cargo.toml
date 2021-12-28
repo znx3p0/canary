@@ -1,8 +1,10 @@
 [package]
 name = "sia"
-version = "0.0.1"
+version = "0.0.0"
 edition = "2021"
 
+repository = "https://github.com/znx3p0/sia"
+keywords = [ "rpc", "async", "network", "microservices", "api" ]
 description = "distributed systems library for making communications through the network easier"
 license = "MIT"
 
