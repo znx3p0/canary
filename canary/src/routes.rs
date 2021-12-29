@@ -12,15 +12,6 @@ use crate::service::{Service, Svc};
 use crate::Result;
 
 type RouteKey = CompactStr;
-
-#[derive(Serialize_repr, Deserialize_repr)]
-// used for discovery
-#[repr(u8)]
-pub enum Status {
-    Found = 1,
-    NotFound = 2,
-}
-
 #[derive(Default)]
 pub struct Route(DashMap<RouteKey, Storable>);
 
@@ -36,6 +27,14 @@ pub trait RegisterEndpoint {
 pub trait Register: RegisterEndpoint {
     type Meta;
     fn register(top_route: &Route, meta: Self::Meta) -> Result<()>;
+}
+
+#[derive(Serialize_repr, Deserialize_repr)]
+// used for discovery
+#[repr(u8)]
+pub enum Status {
+    Found = 1,
+    NotFound = 2,
 }
 
 pub static GLOBAL_ROUTE: Lazy<Route> = Lazy::new(Default::default);
