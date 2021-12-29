@@ -10,7 +10,7 @@ mod channel;
 pub mod err;
 mod io;
 pub mod serialization;
-pub mod sia;
+// pub mod canary;
 pub mod type_iter;
 
 pub use channel::*;

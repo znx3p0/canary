@@ -83,7 +83,7 @@ pub fn service(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
                 let ty = *s.ty.clone();
                 if quote!(_).to_string() == quote!(#ty).to_string() {
                     //  type inferred
-                    s.ty = Box::new(syn::parse2(quote!(::sia::comms::Typed<#pipeline>)).unwrap());
+                    s.ty = Box::new(syn::parse2(quote!(::canary::comms::Typed<#pipeline>)).unwrap());
                 }
             }
         }
@@ -103,7 +103,7 @@ pub fn service(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
                             if quote!(_).to_string() == quote!(#ty).to_string() {
                                 //  type inferred
                                 s.ty = Box::new(
-                                    syn::parse2(quote!(::sia::comms::Typed<#pipeline>)).unwrap(),
+                                    syn::parse2(quote!(::canary::comms::Typed<#pipeline>)).unwrap(),
                                 );
                             }
                         }
@@ -114,7 +114,7 @@ pub fn service(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
                     let ty = *s.ty.clone();
                     if quote!(_).to_string() == quote!(#ty).to_string() {
                         //  type inferred
-                        s.ty = Box::new(syn::parse2(quote!(::sia::Typed<#pipeline>)).unwrap());
+                        s.ty = Box::new(syn::parse2(quote!(::canary::Typed<#pipeline>)).unwrap());
                     }
                 }
                 index += 1;
@@ -125,13 +125,13 @@ pub fn service(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
     quote!(
         #[allow(non_camel_case_types)]
         #vis struct #name;
-        impl ::sia::service::Service for #name {
+        impl ::canary::service::Service for #name {
             const ENDPOINT: &'static str = #endpoint;
             type Pipeline = #pipeline;
             type Meta = #meta;
-            fn service(__sia_inner_meta: #meta) -> Box<dyn Fn(::sia::igcp::BareChannel) + Send + Sync + 'static> {
+            fn service(__canary_inner_meta: #meta) -> Box<dyn Fn(::canary::igcp::BareChannel) + Send + Sync + 'static> {
                 #item
-                ::sia::service::run_metadata(__sia_inner_meta, #name)
+                ::canary::service::run_metadata(__canary_inner_meta, #name)
             }
         }
     )
@@ -174,7 +174,7 @@ pub fn main(_: TokenStream, item: TokenStream) -> TokenStream {
     quote!(
         fn main() #ret {
             #input
-            ::sia::runtime::block_on(main())
+            ::canary::runtime::block_on(main())
         }
     )
     .into()
@@ -186,7 +186,7 @@ fn struct_route(attrs: TokenStream, item: ItemStruct) -> TokenStream {
         .unwrap_or(LitStr::new(&ident.clone().to_string(), ident.span()));
     quote!(
         #item
-        impl ::sia::routes::RegisterEndpoint for #ident {
+        impl ::canary::routes::RegisterEndpoint for #ident {
             const ENDPOINT: &'static str = #endpoint;
         }
     )
@@ -214,16 +214,16 @@ fn impl_route(_attrs: TokenStream, mut item: ItemImpl) -> TokenStream {
             #item
 
             #(
-                #[::sia::service]
-                async fn #names(__inner: ::std::sync::Arc<#name>, channel: ::sia::Channel) -> ::sia::Result<()> {
+                #[::canary::service]
+                async fn #names(__inner: ::std::sync::Arc<#name>, channel: ::canary::Channel) -> ::canary::Result<()> {
                     __inner.#names(channel).await
                 }
             )*
 
 
-            impl ::sia::routes::Register for #name {
+            impl ::canary::routes::Register for #name {
                 type Meta = ::std::sync::Arc<Self>;
-                fn register(top_route: &::sia::routes::Route, meta: Self::Meta) -> ::sia::Result<()> {
+                fn register(top_route: &::canary::routes::Route, meta: Self::Meta) -> ::canary::Result<()> {
                     #(
                         top_route.add_service::<#names>(meta.clone())?;
                     )*

@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "sia",
-    "sia-macro",
+    "canary",
+    "canary-macro",
     "igcp",
 ]

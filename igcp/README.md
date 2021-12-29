@@ -1,6 +1,6 @@
 # IGCP
 
-IGCP is the communication backend of Sia.
+IGCP is the communication backend of Canary.
 It provides a simple `Channel` type that represents a stream of objects,
 and a serializable `std::io::Result`.
 

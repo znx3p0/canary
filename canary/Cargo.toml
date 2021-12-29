@@ -1,9 +1,9 @@
 [package]
-name = "sia"
-version = "0.0.4"
+name = "canary"
+version = "0.0.0"
 edition = "2021"
 
-repository = "https://github.com/znx3p0/sia"
+repository = "https://github.com/znx3p0/canary"
 keywords = [ "rpc", "async", "network", "microservices", "api" ]
 description = "distributed systems library for making communications through the network easier"
 license = "MIT"
@@ -13,6 +13,7 @@ license = "MIT"
 [dependencies]
 # internal communications
 serde = { version = "1", features = [ "derive", "rc" ] }
+serde_repr = "0.1"
 bincode = { version = "1" }
 
 # routes
@@ -26,7 +27,7 @@ tokio = { version = "1", features = [ "rt-multi-thread", "macros", "time" ], opt
 tracing = "0.1" # stable api
 
 # ergonomics
-sia-macro = { path = "../sia-macro", version = "0.0.2" }
+canary-macro = { path = "../canary-macro", version = "0.0.2" }
 
 # communications
 igcp = { path = "../igcp", version = "0.0.4" }

@@ -1,6 +1,5 @@
 use compact_str::CompactStr;
-pub use igcp::sia::Status;
-
+use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::sync::Arc;
 
 use camino::Utf8Path;
@@ -13,6 +12,15 @@ use crate::service::{Service, Svc};
 use crate::Result;
 
 type RouteKey = CompactStr;
+
+#[derive(Serialize_repr, Deserialize_repr)]
+// used for discovery
+#[repr(u8)]
+pub enum Status {
+    Found = 1,
+    NotFound = 2,
+}
+
 
 #[derive(Default)]
 pub struct Route(DashMap<RouteKey, Storable>);

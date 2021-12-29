@@ -1,11 +1,11 @@
 [package]
-name = "sia-macro"
-version = "0.0.2"
+name = "canary-macro"
+version = "0.0.0"
 edition = "2021"
 
-repository = "https://github.com/znx3p0/sia"
+repository = "https://github.com/znx3p0/canary"
 keywords = [ "rpc", "async", "network", "microservices", "api" ]
-description = "contains sia's macros"
+description = "contains canary's macros"
 license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
