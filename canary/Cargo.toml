@@ -1,6 +1,6 @@
 [package]
 name = "canary"
-version = "0.0.0"
+version = "0.0.5"
 edition = "2021"
 
 repository = "https://github.com/znx3p0/canary"
@@ -27,10 +27,10 @@ tokio = { version = "1", features = [ "rt-multi-thread", "macros", "time" ], opt
 tracing = "0.1" # stable api
 
 # ergonomics
-canary-macro = { path = "../canary-macro", version = "0.0.2" }
+canary-macro = { path = "../canary-macro", version = "0.0.5" }
 
 # communications
-igcp = { path = "../igcp", version = "0.0.4" }
+igcp = { path = "../igcp", version = "0.0.5" }
 
 # compile time
 derive_more = "0.99" # stable api
