@@ -83,7 +83,8 @@ pub fn service(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
                 let ty = *s.ty.clone();
                 if quote!(_).to_string() == quote!(#ty).to_string() {
                     //  type inferred
-                    s.ty = Box::new(syn::parse2(quote!(::canary::comms::Typed<#pipeline>)).unwrap());
+                    s.ty =
+                        Box::new(syn::parse2(quote!(::canary::comms::Typed<#pipeline>)).unwrap());
                 }
             }
         }

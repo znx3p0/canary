@@ -21,7 +21,6 @@ pub enum Status {
     NotFound = 2,
 }
 
-
 #[derive(Default)]
 pub struct Route(DashMap<RouteKey, Storable>);
 
