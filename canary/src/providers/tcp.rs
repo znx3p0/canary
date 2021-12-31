@@ -70,7 +70,7 @@ impl Tcp {
             Status::Found => Ok(c),
             Status::NotFound => err!((
                 not_found,
-                format!("id `{}` not found at address {:?}", id, addrs)
+                format!("id `{id}` not found at address {:?}", addrs)
             )),
         }
     }
@@ -130,7 +130,7 @@ impl InsecureTcp {
             Status::Found => Ok(c),
             Status::NotFound => err!((
                 not_found,
-                format!("id `{}` not found at address {:?}", id, addrs)
+                format!("id `{id}` not found at address {:?}", addrs)
             )),
         }
     }

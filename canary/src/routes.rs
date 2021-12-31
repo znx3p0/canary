@@ -45,7 +45,7 @@ impl Route {
             .0
             .insert(at.into(), Storable::Service(T::service(meta)))
         {
-            Some(_) => err!((in_use, format!("service `{}` already exists", at))),
+            Some(_) => err!((in_use, format!("service `{at}` already exists"))),
             None => Ok(()),
         }
     }
@@ -72,13 +72,13 @@ impl Route {
             Some(_) => Ok(()),
             None => err!((
                 not_found,
-                format!("route or service `{}` doesn't exist", at)
+                format!("route or service `{at}` doesn't exist")
             )),
         }
     }
     pub fn add_route_at(&self, at: &str, route: impl Into<Arc<Route>>) -> Result<()> {
         match self.0.insert(at.into(), Storable::Route(route.into())) {
-            Some(_) => err!((in_use, format!("route `{}` already exists", at))),
+            Some(_) => err!((in_use, format!("route `{at}` already exists"))),
             None => Ok(()),
         }
     }
