@@ -8,8 +8,10 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use super::{InsecureTcp, Tcp};
+
 #[cfg(unix)]
 use super::{InsecureUnix, Unix};
+
 use crate::runtime::JoinHandle;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
@@ -35,6 +37,7 @@ impl ServiceAddr {
     pub fn take_addr(self) -> Addr {
         self.0
     }
+
     pub async fn connect(&self) -> Result<Channel> {
         match &self.0 {
             Addr::Tcp(addrs) => Tcp::connect(addrs.as_ref(), &self.1).await,
@@ -55,6 +58,7 @@ impl Addr {
     pub fn service(self, id: impl Into<CompactStr>) -> ServiceAddr {
         ServiceAddr(self, id.into())
     }
+
     pub async fn bind(&self) -> Result<JoinHandle<Result<()>>> {
         match self {
             Addr::Tcp(addrs) => Tcp::bind(addrs.as_ref()).await,
@@ -65,6 +69,7 @@ impl Addr {
             Addr::InsecureUnix(addrs) => InsecureUnix::bind(addrs.as_ref()).await,
         }
     }
+
     pub async fn connect(&self, id: &str) -> Result<Channel> {
         match self {
             Addr::Tcp(addrs) => Tcp::connect(addrs.as_ref(), id).await,
@@ -88,19 +93,7 @@ impl FromStr for Addr {
         let mut s = s.split("@");
         let address_ty = {
             let protocol = s.next().ok_or(err!(invalid_input, "protocol not found"))?;
-            match protocol {
-                "tcp" => AddressType::Tcp,
-                "itcp" => AddressType::InsecureTcp,
-                #[cfg(unix)]
-                "unix" => AddressType::Unix,
-                #[cfg(unix)]
-                "iunix" => AddressType::InsecureUnix,
-                #[cfg(not(unix))]
-                "unix" => err!((unsupported, "Unix is not supported on non-unix targets"))?,
-                #[cfg(not(unix))]
-                "iunix" => err!((unsupported, "Unix is not supported on non-unix targets"))?,
-                protocol => err!((invalid_input, format!("unexpected protocol {:?}", protocol)))?,
-            }
+            protocol.parse::<AddressType>()?
         };
         let addr = s.next().ok_or(err!(invalid_input, "address not found"))?;
         Ok(match address_ty {
@@ -152,19 +145,7 @@ impl FromStr for ServiceAddr {
             .split("@");
         let address_ty = {
             let protocol = s.next().ok_or(err!(invalid_input, "protocol not found"))?;
-            match protocol {
-                "tcp" => AddressType::Tcp,
-                "itcp" => AddressType::InsecureTcp,
-                #[cfg(unix)]
-                "unix" => AddressType::Unix,
-                #[cfg(unix)]
-                "iunix" => AddressType::InsecureUnix,
-                #[cfg(not(unix))]
-                "unix" => err!((unsupported, "Unix is not supported on non-unix targets"))?,
-                #[cfg(not(unix))]
-                "iunix" => err!((unsupported, "Unix is not supported on non-unix targets"))?,
-                protocol => err!((invalid_input, format!("unexpected protocol {:?}", protocol)))?,
-            }
+            protocol.parse::<AddressType>()?
         };
         let addr = s.next().ok_or(err!(invalid_input, "address not found"))?;
         let addr = match address_ty {
@@ -206,4 +187,25 @@ enum AddressType {
     Unix,
     #[cfg(unix)]
     InsecureUnix,
+}
+
+impl FromStr for AddressType {
+    type Err = Error;
+
+    fn from_str(protocol: &str) -> Result<Self> {
+        let protocol = match protocol {
+            "tcp" => AddressType::Tcp,
+            "itcp" => AddressType::InsecureTcp,
+            #[cfg(unix)]
+            "unix" => AddressType::Unix,
+            #[cfg(unix)]
+            "iunix" => AddressType::InsecureUnix,
+            #[cfg(not(unix))]
+            "unix" => err!((unsupported, "Unix is not supported on non-unix targets"))?,
+            #[cfg(not(unix))]
+            "iunix" => err!((unsupported, "Unix is not supported on non-unix targets"))?,
+            protocol => err!((invalid_input, format!("unexpected protocol {:?}", protocol)))?,
+        };
+        Ok(protocol)
+    }
 }

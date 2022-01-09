@@ -11,7 +11,7 @@ where
     O: Serialize,
 {
     let serialized = F::serialize(&obj)?;
-    zc::send_u32(st, serialized.len() as u32).await?;
+    zc::send_u64(st, serialized.len() as _).await?;
     // return length of object sent
     st.write_all(&serialized).await?;
     st.flush().await?;
@@ -23,11 +23,10 @@ where
     T: Read + Unpin,
     O: DeserializeOwned,
 {
-    let size = zc::read_u32(st).await?;
+    let size = zc::read_u64(st).await?;
     // this is done for fallibility, we don't want people sending in usize::MAX
     // as the len unexpectedly crashing the program
     let mut buf = zc::try_vec(size as usize)?;
-    buf.resize(size as usize, 0);
     // read message into buffer
     st.read_exact(&mut buf).await?;
     F::deserialize(&buf)

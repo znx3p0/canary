@@ -96,37 +96,119 @@ impl<T: ReadWrite + Unpin> Snow<T> {
             }
         }
     }
-    pub async fn rx<O: DeserializeOwned, F: ReadFormat>(&mut self) -> Result<O> {
-        let size = zc::read_u32(&mut self.stream).await?;
 
+    // pub async fn rx<O: DeserializeOwned, F: ReadFormat>(&mut self) -> Result<O> {
+    //     let size = zc::read_u32(&mut self.stream).await?;
+    //     let mut buf = zc::try_vec(size as _)?;
+
+    //     self.stream.read_exact(&mut buf).await?;
+
+    //     let mut msg = vec![0u8; buf.len()];
+    //     self.transport
+    //         .read_message(&buf, &mut msg)
+    //         .or_else(|e| err!((other, e)))?;
+
+    //     F::deserialize(&msg)
+    // }
+    pub async fn rx<O: DeserializeOwned, F: ReadFormat>(&mut self) -> Result<O> {
+        let size = zc::read_u64(&mut self.stream).await?;
         let mut buf = zc::try_vec(size as _)?;
 
         self.stream.read_exact(&mut buf).await?;
+        let mut msg = vec![];
 
-        let mut msg = vec![0u8; buf.len()];
-        self.transport
-            .read_message(&buf, &mut msg)
-            .or_else(|e| err!((other, e)))?;
+        for chunk in buf.chunks(PACKET_LEN as usize + 16) {
+            let mut decrypted = vec![0u8; buf.len()];
+            // decrypt
+            self.transport
+                .read_message(&chunk, &mut decrypted)
+                .or_else(|e| err!((other, e)))?;
+            msg.append(&mut decrypted);
+        }
 
         F::deserialize(&msg)
     }
+    async fn zc_receive_packet(&mut self, len: usize) -> Result<usize> {
+        todo!()
+    }
+    // pub async fn tx<O: Serialize, F: SendFormat>(&mut self, obj: O) -> Result<usize> {
+    //     // serialize or return invalid data error
+    //     let vec = F::serialize(&obj)?;
+
+    //     // get length from serialized object
+    //     let len = vec.len();
+
+    //     // create message buffer
+    //     let mut msg = vec![0u8; len + 16];
+    //     // encrypt into message buffer
+    //     self.transport
+    //         .write_message(&vec, &mut msg)
+    //         .map_err(|e| err!(invalid_data, e))?;
+
+    //     zc::send_u32(&mut self.stream, msg.len() as _).await?;
+    //     self.stream.write_all(&msg).await?;
+    //     self.stream.flush().await?;
+    //     Ok(msg.len())
+    // }
+
+    // pub async fn rx<O: DeserializeOwned, F: ReadFormat>(&mut self) -> Result<O> {
+    //     let size = zc::read_u64(&mut self.stream).await?;
+    //     let mut top_msg = zc::try_vec(size as _)?;
+    //     let mut decrypted = vec![];
+
+    //     let (_, last_len) = num_packets(size);
+
+    //     self.stream.read_exact(&mut top_msg).await?;
+
+    //     for buf in top_msg.chunks(PACKET_LEN as _) {   
+    //         let mut msg = vec![0u8; buf.len()];
+    //         self.transport
+    //             .read_message(&buf, &mut msg)
+    //             .or_else(|e| err!((other, e)))?;
+    //         decrypted.append(&mut msg);
+    //     }
+
+    //     F::deserialize(&decrypted)
+    // }
+    
     pub async fn tx<O: Serialize, F: SendFormat>(&mut self, obj: O) -> Result<usize> {
         // serialize or return invalid data error
         let vec = F::serialize(&obj)?;
 
         // get length from serialized object
         let len = vec.len();
+        let extra_len = (len as u64 / PACKET_LEN) + 1 * 16;
+        // 64000 => 64016, 128000 => 128032
+        let total_len = len as u64 + extra_len;
 
+        zc::send_u64(&mut self.stream, total_len).await?;
+        
+        for chunk in vec.chunks(PACKET_LEN as _) {
+            self.zc_send_packet(&chunk).await?;
+        }
+
+        self.stream.flush().await?;
+        Ok(len + 16)
+    }
+
+    async fn zc_send_packet(&mut self, buf: &[u8]) -> Result<usize> {
         // create message buffer
-        let mut msg = vec![0u8; len + 16];
+        let mut msg = vec![0u8; buf.len() + 16];
         // encrypt into message buffer
         self.transport
-            .write_message(&vec, &mut msg)
+            .write_message(buf, &mut msg)
             .map_err(|e| err!(invalid_data, e))?;
 
-        zc::send_u32(&mut self.stream, msg.len() as _).await?;
         self.stream.write_all(&msg).await?;
-        self.stream.flush().await?;
         Ok(msg.len())
     }
 }
+
+
+const PACKET_LEN: u64 = 4000;
+
+fn num_packets(mut packets: u64) -> (u64, u64) {
+    (packets / PACKET_LEN, packets % PACKET_LEN)
+}
+
+

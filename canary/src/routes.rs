@@ -70,10 +70,7 @@ impl Route {
     pub fn remove_at(&self, at: &str) -> Result<()> {
         match self.0.remove(at) {
             Some(_) => Ok(()),
-            None => err!((
-                not_found,
-                format!("route or service `{at}` doesn't exist")
-            )),
+            None => err!((not_found, format!("route or service `{at}` doesn't exist"))),
         }
     }
     pub fn add_route_at(&self, at: &str, route: impl Into<Arc<Route>>) -> Result<()> {

@@ -1,3 +1,5 @@
+#![cfg(not(target_arch = "wasm32"))]
+
 use crate::routes::Status;
 use crate::routes::GLOBAL_ROUTE;
 use crate::runtime;
