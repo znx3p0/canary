@@ -41,7 +41,6 @@ pub(crate) async fn read_u64<T: Read + Unpin>(st: &mut T) -> Result<u64> {
     st.read_exact(&mut buf).await?;
     Ok(u64::from_be_bytes(buf))
 }
-
 pub(crate) fn try_vec<T: Default + Clone>(size: usize) -> Result<Vec<T>> {
     let mut buf = Vec::new();
     buf.try_reserve(size as usize).or_else(|e| {

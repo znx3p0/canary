@@ -19,10 +19,7 @@ pub type AnyChannel = Channel<AnyInput, Bincode>;
 pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
 
 #[derive(From)]
-/// agnostic channel that can be used for local or remote communication.
-///
-/// do note that channels cannot send messages over u32::MAX length,
-/// and encrypted messages have a max length of 65511 bytes at the moment.
+/// `Channel` abstracts network communications as object streams.
 ///
 /// ```norun
 /// async fn send_random(mut chan: Channel) -> Result<()> {
@@ -46,6 +43,7 @@ pub enum Channel<ReadFmt: ReadFormat = Bincode, SendFmt: SendFormat = Bincode> {
 }
 
 #[derive(From)]
+/// `BareChannel` is a non-generic version of `Channel` used to make conversion between channels types easier
 pub enum BareChannel {
     Tcp(Snow<TcpStream>),
     EncryptedAny(Snow<Box<dyn ReadWrite>>),
