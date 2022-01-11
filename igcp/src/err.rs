@@ -290,7 +290,6 @@ pub enum ErrorKindSer {
     /// by problems with the network or server.
     StaleNetworkFileHandle,
     /// A parameter was incorrect.
-
     InvalidInput,
     /// Data not valid for the operation were encountered.
     ///

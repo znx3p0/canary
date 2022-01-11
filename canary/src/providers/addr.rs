@@ -21,7 +21,7 @@ use crate::runtime::JoinHandle;
 /// let unix = "unix@mysocket.sock".parse::<Addr>()?;
 /// let insecure_tcp = "itcp@127.0.0.1:8080".parse::<Addr>()?;
 /// let insecure_unix = "iunix@mysocket.sock".parse::<Addr>()?;
-/// 
+///
 /// tcp.bind().await?; // bind all addresses to the global route
 /// unix.bind().await?;
 /// insecure_tcp.bind().await?;
@@ -44,7 +44,7 @@ pub enum Addr {
 /// Represents the full address of a service.
 /// ```norun
 /// let service = "my_service://tcp@127.0.0.1:8080".parse::<ServiceAddr>()?;
-/// 
+///
 /// let chan = service.connect().await?;
 /// ```
 pub struct ServiceAddr(Addr, CompactStr);

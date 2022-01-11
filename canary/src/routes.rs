@@ -60,7 +60,7 @@ impl Route {
     ///     channel.send("Pong!").await?;
     ///     Ok(())
     /// }
-    /// 
+    ///
     /// GLOBAL_ROUTE.add_service_at::<ping_service>("ping", ())?;
     /// ```
     pub fn add_service_at<T: Service>(&self, at: &str, meta: T::Meta) -> Result<()> {
@@ -81,7 +81,7 @@ impl Route {
     ///     channel.send("Pong!").await?;
     ///     Ok(())
     /// }
-    /// 
+    ///
     /// GLOBAL_ROUTE.add_service::<ping_service>(())?;
     /// ```
     pub fn add_service<T: Service>(&self, meta: T::Meta) -> Result<()> {
@@ -117,7 +117,10 @@ impl Route {
     pub fn remove_at(&self, at: &str) -> Result<()> {
         match self.0.remove(at) {
             Some(_) => Ok(()),
-            None => err!((not_found, format!("route or service `{}` doesn't exist", at))),
+            None => err!((
+                not_found,
+                format!("route or service `{}` doesn't exist", at)
+            )),
         }
     }
     /// add a route into the route at the specified id.
@@ -135,7 +138,7 @@ impl Route {
     /// GLOBAL_ROUTE.register_route_at::<MyType>("MyRoute", ())?;
     /// ```
     /// the global route now looks like this:
-    /// 
+    ///
     /// GLOBAL_ROUTE:
     /// - MyRoute:
     ///   - ... whatever the register implementation added
@@ -150,7 +153,7 @@ impl Route {
     /// GLOBAL_ROUTE.register_route::<MyRoute>(())?;
     /// ```
     /// the global route now looks like this:
-    /// 
+    ///
     /// GLOBAL_ROUTE:
     /// - MyRoute:
     ///   - ... whatever the register implementation added

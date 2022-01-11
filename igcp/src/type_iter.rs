@@ -7,7 +7,7 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
     serialization::formats::{Bincode, ReadFormat, SendFormat},
-    Channel, BareChannel,
+    BareChannel, Channel,
 };
 
 /// used for internals.
@@ -193,7 +193,10 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> MainChannel<T, Read
     }
     /// send a str through the stream, this is an optimization done for pipelines receiving String
     /// to make sure an unnecessary allocation is not made
-    pub async fn tx_str(mut self, obj: &str) -> crate::Result<MainChannel<T::Next, ReadFmt, SendFmt>>
+    pub async fn tx_str(
+        mut self,
+        obj: &str,
+    ) -> crate::Result<MainChannel<T::Next, ReadFmt, SendFmt>>
     where
         T::Type: Transmit + Str,
         <T as TypeIterT>::Next: TypeIterT,
@@ -279,7 +282,10 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> PeerChannel<T, Read
     }
     /// send a str through the stream, this is an optimization done for pipelines receiving String
     /// to make sure an unnecessary allocation is not made
-    pub async fn tx_str(mut self, obj: &str) -> crate::Result<PeerChannel<T::Next, ReadFmt, SendFmt>>
+    pub async fn tx_str(
+        mut self,
+        obj: &str,
+    ) -> crate::Result<PeerChannel<T::Next, ReadFmt, SendFmt>>
     where
         T::Type: Transmit + Str,
         <T as TypeIterT>::Next: TypeIterT,

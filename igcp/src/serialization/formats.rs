@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
-use serde::Serialize;
 use bincode::Options;
+use serde::Serialize;
 
 use crate::err;
 
