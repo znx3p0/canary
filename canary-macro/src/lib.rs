@@ -10,8 +10,7 @@ macro_rules! panic_span {
     };
 }
 
-/// services run on a global cluster that can be exposed through providers.
-/// services are an agnostic way of communicating.
+/// services are methods that run on a global cluster and can be exposed through providers.
 ///
 /// At first sight, they might look similar to HTTP handlers, and although they are similar,
 /// it is important to note that there are various differences.

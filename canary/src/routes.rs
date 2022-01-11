@@ -13,6 +13,8 @@ use crate::Result;
 
 type RouteKey = CompactStr;
 #[derive(Default)]
+/// used for discovering services.
+/// it stores services inside with a key and it can introduce channels to services.
 pub struct Route(DashMap<RouteKey, Storable>);
 
 enum Storable {

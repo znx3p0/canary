@@ -16,6 +16,7 @@ use crate::Result;
 
 /// channel that allows input with any serialization format. supports bincode, json, bson and postcard and deserializes in that order
 pub type AnyChannel = Channel<AnyInput, Bincode>;
+/// read format that allows input with any serialization format. supports bincode, json, bson and postcard and deserializes in that order
 pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
 
 #[derive(From)]
@@ -28,30 +29,44 @@ pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
 /// }
 /// ```
 pub enum Channel<ReadFmt: ReadFormat = Bincode, SendFmt: SendFormat = Bincode> {
+    /// encrypted tcp backend
     Tcp(Snow<TcpStream>),
+    /// encrypted backend for any type that implements Read + Write
     EncryptedAny(Snow<Box<dyn ReadWrite>>),
+    /// unencrypted tcp backend
     InsecureTcp(TcpStream),
+    /// unencrypted backend for any type that implements Read + Write
     InsecureAny(Box<dyn ReadWrite>),
 
     #[cfg(unix)]
+    /// encrypted unix backend
     Unix(Snow<UnixStream>),
     #[cfg(unix)]
+    /// unencrypted unix backend
     InsecureUnix(UnixStream),
 
-    #[allow(non_camel_case_types)] // Infallible makes sure that this value cannot be constructed
+    #[allow(non_camel_case_types)]
+    /// used to hold the generic types, `Infallible` makes sure that this variant cannot
+    /// be constructed without unsafe
     __InternalPhantomData__((PhantomData<(ReadFmt, SendFmt)>, core::convert::Infallible)),
 }
 
 #[derive(From)]
 /// `BareChannel` is a non-generic version of `Channel` used to make conversion between channels types easier
 pub enum BareChannel {
+    /// encrypted tcp backend
     Tcp(Snow<TcpStream>),
+    /// encrypted backend for any type that implements Read + Write
     EncryptedAny(Snow<Box<dyn ReadWrite>>),
+    /// unencrypted tcp backend
     InsecureTcp(TcpStream),
+    /// unencrypted backend for any type that implements Read + Write
     InsecureAny(Box<dyn ReadWrite>),
 
     #[cfg(unix)]
+    /// encrypted unix backend
     Unix(Snow<UnixStream>),
+    /// unencrypted unix backend
     #[cfg(unix)]
     InsecureUnix(UnixStream),
 }
@@ -72,22 +87,35 @@ impl<R: ReadFormat, S: SendFormat> From<BareChannel> for Channel<R, S> {
     }
 }
 
+/// wrapper trait to allow any type that implements `Read`, `Write`, `Send`, `Sync` and `'static`
+/// to use `Channel`
 pub trait ReadWrite: Read + Write + Unpin + Send + Sync + 'static {}
 impl<T: Read + Write + 'static + Unpin + Send + Sync> ReadWrite for T {}
 
 impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
+    /// create a new channel from a tcp stream
     pub async fn new_tcp_encrypted(stream: TcpStream) -> Result<Self> {
         Ok(Snow::new(stream).await?.into())
     }
     #[cfg(unix)]
+    /// create a new channel from a unix stream
     pub async fn new_unix_encrypted(stream: UnixStream) -> Result<Self> {
         Ok(Snow::new(stream).await?.into())
     }
+    /// create a new channel from an unsupported type
+    ///
     /// accepts any type and uses dynamic dispatch, only use if your type is not supported
     pub async fn new_any_encrypted(stream: impl Into<Box<dyn ReadWrite>>) -> Result<Self> {
         Ok(Snow::new(stream.into()).await?.into())
     }
 
+    /// send message to stream
+    /// ```norun
+    /// async fn service(mut peer: Channel) -> Result<()> {
+    ///     peer.tx(123).await?;
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn tx<O: Serialize>(&mut self, obj: O) -> Result<usize> {
         match self {
             Channel::Tcp(st) => st.tx::<_, SendFmt>(obj).await,
@@ -106,6 +134,13 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
     pub async fn send<O: Serialize>(&mut self, obj: O) -> Result<usize> {
         self.tx(obj).await
     }
+    /// receive message from stream
+    /// ```norun
+    /// async fn service(mut peer: Channel) -> Result<()> {
+    ///     let num: u64 = peer.rx().await?;
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn rx<O: DeserializeOwned>(&mut self) -> Result<O> {
         match self {
             Channel::Tcp(st) => st.rx::<_, ReadFmt>().await,
@@ -121,15 +156,26 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
             Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }
+    /// receive message from stream
+    /// ```norun
+    /// async fn service(mut peer: Channel) -> Result<()> {
+    ///     let num: u64 = peer.receive().await?;
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn receive<O: DeserializeOwned>(&mut self) -> Result<O> {
         self.rx().await
     }
+    /// construct a typed wrapper for a channel using pipelines, its asymmetric peer is `PeerChannel`
     pub fn new_main<P: Pipeline>(self) -> MainChannel<P::Pipe, ReadFmt, SendFmt> {
         MainChannel(Default::default(), self)
     }
+    /// construct a typed wrapper for a channel using pipelines, its asymmetric peer is `MainChannel`
     pub fn new_peer<P: Pipeline>(self) -> PeerChannel<P::Pipe, ReadFmt, SendFmt> {
         PeerChannel(Default::default(), self)
     }
+    /// coerce a channel into another kind of channel:
+    /// Channel -> Channel<Json, Bincode> -> AnyChannel
     pub fn coerce<R: ReadFormat, S: SendFormat>(self) -> Channel<R, S> {
         match self {
             Channel::Tcp(s) => s.into(),
@@ -145,6 +191,7 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
             Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }
+    /// make the channel bare, stripping it from its generics
     pub fn bare(self) -> BareChannel {
         match self {
             Channel::Tcp(s) => s.into(),

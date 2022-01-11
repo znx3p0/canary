@@ -5,10 +5,11 @@ use serde::{de::DeserializeOwned, Serialize};
 use super::formats::{ReadFormat, SendFormat};
 use super::zc;
 
+/// send an item through the stream
 pub async fn tx<T, O, F: SendFormat>(st: &mut T, obj: O) -> Result<usize>
 where
-    T: Write + Unpin,
-    O: Serialize,
+T: Write + Unpin,
+O: Serialize,
 {
     let serialized = F::serialize(&obj)?;
     zc::send_u64(st, serialized.len() as _).await?;
@@ -18,6 +19,7 @@ where
     Ok(serialized.len())
 }
 
+/// receive an item from the stream
 pub async fn rx<T, O, F: ReadFormat>(st: &mut T) -> Result<O>
 where
     T: Read + Unpin,

@@ -22,7 +22,7 @@ impl<T: ReadWrite + Unpin> Snow<T> {
         Self::new_with_params(stream, "Noise_NN_25519_ChaChaPoly_BLAKE2s".parse().unwrap()).await
     }
 
-    /// Starts a new snow stream using the provided parameters.
+    /// starts a new snow stream using the provided parameters.
     pub async fn new_with_params(mut stream: T, noise_params: NoiseParams) -> Result<Self> {
         // To initialize the encrypted stream, we need to decide which stream
         // is the initiator and which is the responder.
@@ -99,6 +99,13 @@ impl<T: ReadWrite + Unpin> Snow<T> {
         }
     }
 
+    /// receive message from stream
+    /// ```norun
+    /// async fn service(mut peer: Snow<TcpStream>) -> Result<()> {
+    ///     let num: u64 = peer.rx().await?;
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn rx<O: DeserializeOwned, F: ReadFormat>(&mut self) -> Result<O> {
         let size = zc::read_u64(&mut self.stream).await?;
         // receive message
@@ -118,6 +125,13 @@ impl<T: ReadWrite + Unpin> Snow<T> {
         F::deserialize(&msg)
     }
 
+    /// send message to stream
+    /// ```norun
+    /// async fn service(mut peer: Snow<TcpStream>) -> Result<()> {
+    ///     peer.tx(123).await?;
+    ///     Ok(())
+    /// }
+    /// ```
     pub async fn tx<O: Serialize, F: SendFormat>(&mut self, obj: O) -> Result<usize> {
         // serialize or return invalid data error
         let vec = F::serialize(&obj)?;

@@ -7,11 +7,11 @@ use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
     serialization::formats::{Bincode, ReadFormat, SendFormat},
-    Channel,
+    Channel, BareChannel,
 };
 
 /// used for internals.
-/// pipe!(tx i32, rx u32) -> TypeIter<Tx<i32>, TypeIter<Rx<u32>>>
+/// `pipe!(tx i32, rx u32)` -> `TypeIter<Tx<i32>, TypeIter<Rx<u32>>>`
 #[macro_export]
 macro_rules! pipe {
     (tx $t: ty) => {
@@ -81,8 +81,11 @@ macro_rules! pipeline {
     };
 }
 
+/// used for iterating over types
 pub trait TypeIterT {
+    /// next type iterator
     type Next;
+    /// current value of node
     type Type;
 }
 
@@ -92,16 +95,21 @@ impl TypeIterT for () {
 }
 
 #[derive(Default)]
+/// type iterator which allows compile-time magic
 pub struct TypeIter<T, L = ()>(PhantomData<T>, PhantomData<L>);
 impl<T, L: TypeIterT> TypeIterT for TypeIter<T, L> {
     type Next = L;
     type Type = T;
 }
 
+/// trait that represents send or tx in pipelines
 pub trait Transmit {
+    /// type that can be transmitted
     type Type;
 }
+/// trait that represents receive or rx in pipelines
 pub trait Receive {
+    /// type that can be received
     type Type;
 }
 
@@ -112,10 +120,14 @@ impl<T> Receive for Rx<T> {
     type Type = T;
 }
 
+/// type iterator that represents a type to be sent
 pub struct Tx<T>(T);
+/// type iterator that represents a type to be received
 pub struct Rx<T>(T);
 
+/// used for constructing pipelines
 pub trait Pipeline {
+    /// inner pipeline
     type Pipe: TypeIterT;
 }
 
@@ -123,18 +135,10 @@ impl Pipeline for () {
     type Pipe = ();
 }
 
+/// optimization to allow &str to be sent whenever a String needs to be received
 pub trait Str {}
 impl Str for Tx<String> {}
 impl Str for Tx<&str> {}
-
-const _: () = {
-    assert!(
-        std::mem::size_of::<Channel>() == std::mem::size_of::<MainChannel<crate::pipe!(tx())>>()
-    );
-    assert!(
-        std::mem::size_of::<Channel>() == std::mem::size_of::<PeerChannel<crate::pipe!(tx())>>()
-    );
-};
 
 #[repr(transparent)]
 /// Used for writing services, peer services should use PeerChannel.
@@ -144,11 +148,13 @@ pub struct MainChannel<T: TypeIterT, ReadFmt: ReadFormat = Bincode, SendFmt: Sen
 );
 
 impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> MainChannel<T, ReadFmt, SendFmt> {
+    /// construct a new main channel
     pub fn new<P: Pipeline>(
         chan: Channel<ReadFmt, SendFmt>,
     ) -> MainChannel<P::Pipe, ReadFmt, SendFmt> {
         MainChannel(PhantomData, chan)
     }
+    /// send an object through the stream and iterate to the next type
     pub async fn tx(
         mut self,
         obj: <T::Type as Transmit>::Type,
@@ -161,6 +167,7 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> MainChannel<T, Read
         self.1.tx(obj).await?;
         Ok(MainChannel(PhantomData, self.1))
     }
+    /// receive an object from the stream and iterate to the next type
     pub async fn rx(
         mut self,
     ) -> crate::Result<(
@@ -176,18 +183,25 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> MainChannel<T, Read
         let chan = MainChannel(PhantomData, self.1);
         Ok((res, chan))
     }
+    /// coerce into a different kind of channel:
     pub fn coerce(self) -> Channel<ReadFmt, SendFmt> {
         self.1
     }
-    // pub async fn tx_str(mut self, obj: &str) -> crate::Result<MainChannel<T::Next, ReadFmt, SendFmt>>
-    // where
-    //     T::Type: Transmit + Str,
-    //     <T as TypeIterT>::Next: TypeIterT,
-    //     <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send + 'static,
-    // {
-    //     self.1.tx_str(obj).await?;
-    //     Ok(MainChannel(PhantomData, self.1))
-    // }
+    /// make the channel bare, stripping it from its generics
+    pub fn bare(self) -> BareChannel {
+        self.1.bare()
+    }
+    /// send a str through the stream, this is an optimization done for pipelines receiving String
+    /// to make sure an unnecessary allocation is not made
+    pub async fn tx_str(mut self, obj: &str) -> crate::Result<MainChannel<T::Next, ReadFmt, SendFmt>>
+    where
+        T::Type: Transmit + Str,
+        <T as TypeIterT>::Next: TypeIterT,
+        <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send + 'static,
+    {
+        self.1.tx(obj).await?;
+        Ok(MainChannel(PhantomData, self.1))
+    }
 }
 
 impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> From<MainChannel<T, ReadFmt, SendFmt>>
@@ -212,6 +226,7 @@ pub struct PeerChannel<T: TypeIterT, ReadFmt: ReadFormat = Bincode, SendFmt: Sen
 );
 
 impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> PeerChannel<T, ReadFmt, SendFmt> {
+    /// construct a new peer channel
     pub fn new<P: Pipeline>(
         chan: Channel<ReadFmt, SendFmt>,
     ) -> PeerChannel<P::Pipe, ReadFmt, SendFmt>
@@ -220,6 +235,7 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> PeerChannel<T, Read
     {
         PeerChannel(PhantomData, chan)
     }
+    /// send an object through the stream and iterate to the next type
     pub async fn tx(
         mut self,
         obj: <T::Type as Receive>::Type,
@@ -233,6 +249,7 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> PeerChannel<T, Read
         Ok(PeerChannel(PhantomData, self.1))
     }
 
+    /// receive an object from the stream and iterate to the next type
     pub async fn rx(
         mut self,
     ) -> crate::Result<(
@@ -248,51 +265,27 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> PeerChannel<T, Read
         let chan = PeerChannel(PhantomData, self.1);
         Ok((res, chan))
     }
+    /// coerce into a different kind of channel:
     pub fn channel(self) -> Channel<ReadFmt, SendFmt> {
         self.1
     }
+    /// make the channel bare, stripping it from its generics
+    pub fn bare(self) -> BareChannel {
+        self.1.bare()
+    }
+    /// coerce into a different kind of channel:
     pub fn coerce<R: ReadFormat, S: SendFormat>(self) -> Channel<R, S> {
         self.1.coerce()
     }
-}
-
-/// Experiments at the moment.
-/// AutoTyped is supposed to allow for writing self-describing services,
-/// so pipelines will be written automatically.
-/// The exact implementation is unresolved at the moment.
-/// ```no_run
-/// #[service]
-/// async fn my_service(chan: AutoTyped) -> Result<_> {
-///     let chan = chan.send(false).await?;
-///     let chan = chan.send("hello world!").await?;
-///     chan
-/// } // this will be the equivalent of writing this pipeline
-///
-/// pipeline! {
-///     __internal { // __internal since no pipelines will actually be written
-///         tx bool,
-///         tx String,
-///     }
-/// }
-/// ```
-// unimplemented
-#[allow(unused)]
-pub struct AutoTyped<T: TypeIterT>(Channel, PhantomData<T>);
-
-impl<T: TypeIterT> AutoTyped<T> {
-    #[allow(unused)]
-    pub async fn tx<D: Serialize + Send + 'static>(
-        mut self,
-        s: D,
-    ) -> crate::Result<AutoTyped<TypeIter<Tx<D>, T>>> {
-        self.0.tx(s).await?;
-        Ok(AutoTyped(self.0, PhantomData))
-    }
-    #[allow(unused)]
-    pub async fn rx<D: DeserializeOwned + 'static>(
-        mut self,
-    ) -> crate::Result<(D, AutoTyped<TypeIter<Rx<D>, T>>)> {
-        let p = self.0.rx().await?;
-        Ok((p, AutoTyped(self.0, PhantomData)))
+    /// send a str through the stream, this is an optimization done for pipelines receiving String
+    /// to make sure an unnecessary allocation is not made
+    pub async fn tx_str(mut self, obj: &str) -> crate::Result<PeerChannel<T::Next, ReadFmt, SendFmt>>
+    where
+        T::Type: Transmit + Str,
+        <T as TypeIterT>::Next: TypeIterT,
+        <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send + 'static,
+    {
+        self.1.tx(obj).await?;
+        Ok(PeerChannel(PhantomData, self.1))
     }
 }
