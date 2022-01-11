@@ -22,26 +22,47 @@ enum Storable {
     Service(Svc),
 }
 
+/// has an endpoint at which a type should be registered
 pub trait RegisterEndpoint {
+    /// inner endpoint
     const ENDPOINT: &'static str;
 }
 
+/// Register is how a specific type should be registered on a route,
+/// and the metadata needed for it.
 pub trait Register: RegisterEndpoint {
+    /// metadata of type
     type Meta;
+    /// register implementation of type
     fn register(top_route: &Route, meta: Self::Meta) -> Result<()>;
 }
 
 #[derive(Serialize_repr, Deserialize_repr)]
-// used for discovery
 #[repr(u8)]
+/// used for discovery
 pub enum Status {
+    /// indicates a service has been found
     Found = 1,
+    /// indicates a service has not been found
     NotFound = 2,
 }
 
+/// global route on which initial services are laid on
 pub static GLOBAL_ROUTE: Lazy<Route> = Lazy::new(Default::default);
 
 impl Route {
+    /// adds a service at a specific id to the route
+    /// ```norun
+    /// #[service]
+    /// async fn ping_service(mut channel: Channel) -> Result<()> {
+    ///     let ping: String = channel.receive().await?;
+    ///     println!("received {}", ping);
+    ///     channel.send("Pong!").await?;
+    ///     Ok(())
+    /// }
+    /// 
+    /// GLOBAL_ROUTE.add_service_at::<ping_service>("ping", ())?;
+    /// ```
     pub fn add_service_at<T: Service>(&self, at: &str, meta: T::Meta) -> Result<()> {
         match self
             .0
@@ -51,9 +72,25 @@ impl Route {
             None => Ok(()),
         }
     }
+    /// adds a service to the route
+    /// ```norun
+    /// #[service]
+    /// async fn ping_service(mut channel: Channel) -> Result<()> {
+    ///     let ping: String = channel.receive().await?;
+    ///     println!("received {}", ping);
+    ///     channel.send("Pong!").await?;
+    ///     Ok(())
+    /// }
+    /// 
+    /// GLOBAL_ROUTE.add_service::<ping_service>(())?;
+    /// ```
     pub fn add_service<T: Service>(&self, meta: T::Meta) -> Result<()> {
         self.add_service_at::<T>(T::ENDPOINT, meta)
     }
+    /// removes a service from the route
+    /// ```norun
+    /// GLOBAL_ROUTE.remove_service::<my_service>()?;
+    /// ```
     pub fn remove_service<T: Service>(&self) -> Result<()> {
         match self.0.remove(T::ENDPOINT) {
             Some(_) => Ok(()),
@@ -63,33 +100,67 @@ impl Route {
             )),
         }
     }
-    pub fn remove_route<T: Register>(&self) -> Result<()> {
+    /// remove the register endpoint from the route
+    /// ```norun
+    /// GLOBAL_ROUTE.remove_register::<my_custom_register>()?
+    /// ```
+    pub fn remove_register<T: Register>(&self) -> Result<()> {
         match self.0.remove(T::ENDPOINT) {
             Some(_) => Ok(()),
             None => err!((not_found, format!("route `{}` doesn't exist", T::ENDPOINT))),
         }
     }
+    /// remove the specified id from the route
+    /// ```norun
+    /// GLOBAL_ROUTE.remove_at("my_service")?
+    /// ```
     pub fn remove_at(&self, at: &str) -> Result<()> {
         match self.0.remove(at) {
             Some(_) => Ok(()),
-            None => err!((not_found, format!("route or service `{at}` doesn't exist"))),
+            None => err!((not_found, format!("route or service `{}` doesn't exist", at))),
         }
     }
+    /// add a route into the route at the specified id.
+    /// ```norun
+    /// GLOBAL_ROUTE.add_route_at("MyRoute", Route::default())?;
+    /// ```
     pub fn add_route_at(&self, at: &str, route: impl Into<Arc<Route>>) -> Result<()> {
         match self.0.insert(at.into(), Storable::Route(route.into())) {
-            Some(_) => err!((in_use, format!("route `{at}` already exists"))),
+            Some(_) => err!((in_use, format!("route `{}` already exists", at))),
             None => Ok(()),
         }
     }
+    /// register into a new route and add the new route at the specified id
+    /// ```norun
+    /// GLOBAL_ROUTE.register_route_at::<MyType>("MyRoute", ())?;
+    /// ```
+    /// the global route now looks like this:
+    /// 
+    /// GLOBAL_ROUTE:
+    /// - MyRoute:
+    ///   - ... whatever the register implementation added
     pub fn register_route_at<T: Register>(&self, at: &str, meta: T::Meta) -> Result<()> {
         let route = Route::default();
         T::register(&route, meta)?;
         self.add_route_at(at, route)?;
         Ok(())
     }
+    /// register into a new route and add it
+    /// ```norun
+    /// GLOBAL_ROUTE.register_route::<MyRoute>(())?;
+    /// ```
+    /// the global route now looks like this:
+    /// 
+    /// GLOBAL_ROUTE:
+    /// - MyRoute:
+    ///   - ... whatever the register implementation added
     pub fn register_route<T: Register>(&self, meta: T::Meta) -> Result<()> {
         self.register_route_at::<T>(T::ENDPOINT, meta)
     }
+    /// registers the type on the route
+    /// ```norun
+    /// GLOBAL_ROUTE.register::<MyRoute>(())?;
+    /// ```
     pub fn register<T: Register>(&self, meta: T::Meta) -> Result<()> {
         T::register(self, meta)
     }

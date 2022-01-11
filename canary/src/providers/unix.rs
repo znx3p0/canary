@@ -14,9 +14,11 @@ use igcp::err;
 use igcp::BareChannel;
 use igcp::Channel;
 
+/// Exposes routes over a Unix socket
 pub struct Unix(UnixListener);
 
 impl Unix {
+    /// bind the global route on the given address
     pub async fn bind(addrs: impl AsRef<Path>) -> Result<JoinHandle<Result<()>>> {
         let listener = UnixListener::bind(addrs).await?;
         Ok(runtime::spawn(async move {
@@ -31,6 +33,7 @@ impl Unix {
             }
         }))
     }
+    /// connect to the following address without discovery
     pub async fn raw_connect_with_retries(
         addrs: impl AsRef<Path> + Debug,
         retries: u32,
@@ -58,9 +61,11 @@ impl Unix {
         let chan = Channel::new_unix_encrypted(stream).await?;
         Ok(chan)
     }
+    /// connect to the following address with the following id. Defaults to 3 retries.
     pub async fn connect(addrs: impl AsRef<Path> + Debug, id: &str) -> Result<Channel> {
         Self::connect_retry(addrs, id, 3, 10).await
     }
+    /// connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(
         addrs: impl AsRef<Path> + Debug,
         id: &str,
@@ -79,9 +84,11 @@ impl Unix {
     }
 }
 
+/// Exposes routes over a Unix socket without any encryption
 pub struct InsecureUnix(UnixListener);
 
 impl InsecureUnix {
+    /// bind the global route on the given address
     pub async fn bind(addrs: impl AsRef<Path>) -> Result<JoinHandle<Result<()>>> {
         let listener = UnixListener::bind(addrs).await?;
         Ok(runtime::spawn(async move {
@@ -92,6 +99,7 @@ impl InsecureUnix {
             }
         }))
     }
+    /// connect to the following address without discovery
     pub async fn raw_connect_with_retries(
         addrs: impl AsRef<Path> + Debug,
         retries: u32,
@@ -118,9 +126,11 @@ impl InsecureUnix {
         };
         Ok(Channel::InsecureUnix(stream))
     }
+    /// connect to the following address with the following id. Defaults to 3 retries.
     pub async fn connect(addrs: impl AsRef<Path> + Debug, id: &str) -> Result<Channel> {
         Self::connect_retry(addrs, id, 3, 10).await
     }
+    /// connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(
         addrs: impl AsRef<Path> + Debug,
         id: &str,

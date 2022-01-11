@@ -39,9 +39,13 @@ pub trait Service {
     fn service(meta: Self::Meta) -> Svc;
 }
 
+/// allows to enter a service without introducing the channel to the global route.
 pub trait StaticService {
+    /// metadata of service
     type Meta: Send + Sync + 'static;
+    /// channel type of service
     type Chan: From<BareChannel>;
+    /// function that enters the service with the given channel
     fn introduce(meta: Self::Meta, c: Self::Chan) -> runtime::JoinHandle<crate::Result<()>>;
 }
 

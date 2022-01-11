@@ -13,9 +13,11 @@ use igcp::BareChannel;
 use igcp::Channel;
 use std::fmt::Debug;
 
+/// Exposes routes over TCP
 pub struct Tcp(TcpListener);
 
 impl Tcp {
+    /// bind the global route on the given address
     pub async fn bind(addrs: impl ToSocketAddrs) -> Result<JoinHandle<Result<()>>> {
         let listener = TcpListener::bind(addrs).await?;
         Ok(runtime::spawn(async move {
@@ -30,6 +32,7 @@ impl Tcp {
             }
         }))
     }
+    /// connect to the following address without discovery
     pub async fn raw_connect_with_retries(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
         retries: u32,
@@ -57,9 +60,11 @@ impl Tcp {
         let chan = Channel::new_tcp_encrypted(stream).await?;
         Ok(chan)
     }
+    /// connect to the following address with the following id. Defaults to 3 retries.
     pub async fn connect(addrs: impl ToSocketAddrs + std::fmt::Debug, id: &str) -> Result<Channel> {
         Self::connect_retry(addrs, id, 3, 10).await
     }
+    /// connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
         id: &str,
@@ -78,9 +83,11 @@ impl Tcp {
     }
 }
 
+/// Exposes routes over TCP without any encryption
 pub struct InsecureTcp(TcpListener);
 
 impl InsecureTcp {
+    /// bind the global route on the given address
     pub async fn bind(addrs: impl ToSocketAddrs) -> Result<JoinHandle<Result<()>>> {
         let listener = TcpListener::bind(addrs).await?;
         Ok(runtime::spawn(async move {
@@ -91,6 +98,7 @@ impl InsecureTcp {
             }
         }))
     }
+    /// connect to the following address without discovery
     pub async fn raw_connect_with_retries(
         addrs: impl ToSocketAddrs + Debug,
         retries: u32,
@@ -117,9 +125,11 @@ impl InsecureTcp {
         };
         Ok(Channel::InsecureTcp(stream))
     }
+    /// connect to the following address with the following id. Defaults to 3 retries.
     pub async fn connect(addrs: impl ToSocketAddrs + Debug, id: &str) -> Result<Channel> {
         Self::connect_retry(addrs, id, 3, 10).await
     }
+    /// connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(
         addrs: impl ToSocketAddrs + Debug,
         id: &str,

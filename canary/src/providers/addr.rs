@@ -15,29 +15,55 @@ use super::{InsecureUnix, Unix};
 use crate::runtime::JoinHandle;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
+/// Represents the address of a provider.
+/// ```norun
+/// let tcp = "tcp@127.0.0.1:8080".parse::<Addr>()?;
+/// let unix = "unix@mysocket.sock".parse::<Addr>()?;
+/// let insecure_tcp = "itcp@127.0.0.1:8080".parse::<Addr>()?;
+/// let insecure_unix = "iunix@mysocket.sock".parse::<Addr>()?;
+/// 
+/// tcp.bind().await?; // bind all addresses to the global route
+/// unix.bind().await?;
+/// insecure_tcp.bind().await?;
+/// insecure_unix.bind().await?;
+/// ```
 pub enum Addr {
+    /// tcp provider
     Tcp(Arc<SocketAddr>),
     #[cfg(unix)]
+    /// unix provider
     Unix(Arc<PathBuf>),
+    /// insecure tcp provider
     InsecureTcp(Arc<SocketAddr>),
     #[cfg(unix)]
+    /// insecure unix provider
     InsecureUnix(Arc<PathBuf>),
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
+/// Represents the full address of a service.
+/// ```norun
+/// let service = "my_service://tcp@127.0.0.1:8080".parse::<ServiceAddr>()?;
+/// 
+/// let chan = service.connect().await?;
+/// ```
 pub struct ServiceAddr(Addr, CompactStr);
 
 impl ServiceAddr {
+    /// create a new service address from a string
     pub fn new(addr: &str) -> Result<Self> {
         addr.parse()
     }
+    /// get the underlying address from the service
     pub fn addr(&self) -> &Addr {
         &self.0
     }
+    /// take the underlying address from the service
     pub fn take_addr(self) -> Addr {
         self.0
     }
 
+    /// connect to the service
     pub async fn connect(&self) -> Result<Channel> {
         match &self.0 {
             Addr::Tcp(addrs) => Tcp::connect(addrs.as_ref(), &self.1).await,
@@ -52,13 +78,15 @@ impl ServiceAddr {
 }
 
 impl Addr {
+    /// create a new address from a string
     pub fn new(addr: &str) -> Result<Self> {
         addr.parse()
     }
+    /// create a service address by tying the address to an id
     pub fn service(self, id: impl Into<CompactStr>) -> ServiceAddr {
         ServiceAddr(self, id.into())
     }
-
+    /// bind the address to the global route
     pub async fn bind(&self) -> Result<JoinHandle<Result<()>>> {
         match self {
             Addr::Tcp(addrs) => Tcp::bind(addrs.as_ref()).await,
@@ -70,6 +98,7 @@ impl Addr {
         }
     }
 
+    /// connect to the address with the provided id
     pub async fn connect(&self, id: &str) -> Result<Channel> {
         match self {
             Addr::Tcp(addrs) => Tcp::connect(addrs.as_ref(), id).await,
