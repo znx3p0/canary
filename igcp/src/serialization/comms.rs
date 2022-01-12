@@ -54,22 +54,13 @@ pub async fn wss_tx<T, O, F: SendFormat>(st: &mut T, obj: O) -> Result<usize>
 where
     T: futures::prelude::Sink<Message> + Unpin,
     O: Serialize,
+    <T as futures::prelude::Sink<Message>>::Error: ToString,
 {
     let serialized = F::serialize(&obj)?;
     let len = serialized.len();
     let msg = Message::Binary(serialized);
-    st.feed(msg).await.map_err(|_| {
-        err!(
-            broken_pipe,
-            "websocket connection broke, unable to send message"
-        )
-    })?;
-    st.flush().await.map_err(|_| {
-        err!(
-            broken_pipe,
-            "websocket connection broke, unable to send message"
-        )
-    })?;
+    st.feed(msg).await.map_err(|e| err!(e.to_string()))?;
+    st.flush().await.map_err(|e| err!(e.to_string()))?;
     Ok(len)
 }
 
@@ -79,22 +70,13 @@ pub async fn wss_tx<T, O, F: SendFormat>(st: &mut T, obj: O) -> Result<usize>
 where
     T: futures::prelude::Sink<Message> + Unpin,
     O: Serialize,
+    <T as futures::prelude::Sink<Message>>::Error: ToString,
 {
     let serialized = F::serialize(&obj)?;
     let len = serialized.len();
     let msg = Message::Bytes(serialized);
-    st.feed(msg).await.map_err(|_| {
-        err!(
-            broken_pipe,
-            "websocket connection broke, unable to send message"
-        )
-    })?;
-    st.flush().await.map_err(|_| {
-        err!(
-            broken_pipe,
-            "websocket connection broke, unable to send message"
-        )
-    })?;
+    st.feed(msg).await.map_err(|e| err!(e.to_string()))?;
+    st.flush().await.map_err(|e| err!(e.to_string()))?;
     Ok(len)
 }
 

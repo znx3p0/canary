@@ -1,10 +1,8 @@
-#![allow(unused)]
-
 #[cfg(not(target_arch = "wasm32"))]
 use crate::routes::Status;
 
 #[cfg(target_arch = "wasm32")]
-#[derive(Serialize_repr, Deserialize_repr)]
+#[derive(serde_repr::Serialize_repr, serde_repr::Deserialize_repr)]
 #[repr(u8)]
 /// used for discovery
 pub enum Status {
@@ -33,8 +31,6 @@ use igcp::Channel;
 
 #[cfg(not(target_arch = "wasm32"))]
 use async_std::net::{TcpListener, TcpStream, ToSocketAddrs};
-use serde_repr::Deserialize_repr;
-use serde_repr::Serialize_repr;
 
 /// Exposes routes over WebSockets
 pub struct Wss(#[cfg(not(target_arch = "wasm32"))] TcpListener);
@@ -75,12 +71,8 @@ impl Wss {
                 .next()
                 .ok_or(err!("no endpoint found"))?;
 
-            match TcpStream::connect(&addrs).await {
-                Ok(s) => {
-                    let (client, _) =
-                        async_tungstenite::async_std::connect_async(&format!("ws://{}", &addrs))
-                            .await
-                            .map_err(|e| err!(e))?;
+            match async_tungstenite::async_std::connect_async(&format!("ws://{}", &addrs)).await {
+                Ok((client, _)) => {
                     break client;
                 }
                 Err(e) => {
