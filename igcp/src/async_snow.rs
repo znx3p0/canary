@@ -3,9 +3,9 @@ use snow::{params::*, TransportState};
 
 use crate::io::{ReadExt, WriteExt};
 use crate::serialization::formats::{Bincode, ReadFormat, SendFormat};
-use crate::serialization::{rx, tx, zc, wss_tx, wss_rx};
-use crate::{Result, WSS};
+use crate::serialization::{rx, tx, wss_rx, wss_tx, zc};
 use crate::{err, ReadWrite};
+use crate::{Result, WSS};
 
 /// Stream wrapper with encryption.
 /// It uses the Noise protocol for encryption
@@ -176,7 +176,8 @@ impl<T: ReadWrite + Unpin> Snow<T> {
 impl Snow<WSS> {
     /// Starts a new snow stream using the default noise parameters
     pub async fn new_wss(stream: WSS) -> Result<Self> {
-        Self::new_with_params_wss(stream, "Noise_NN_25519_ChaChaPoly_BLAKE2s".parse().unwrap()).await
+        Self::new_with_params_wss(stream, "Noise_NN_25519_ChaChaPoly_BLAKE2s".parse().unwrap())
+            .await
     }
 
     /// starts a new snow stream using the provided parameters.
@@ -188,7 +189,9 @@ impl Snow<WSS> {
 
         let should_init = loop {
             let local_num = rand::random::<u64>();
+
             wss_tx::<_, _, Bincode>(&mut stream, local_num).await?;
+
             let peer_num = wss_rx::<_, _, Bincode>(&mut stream).await?;
             if local_num == peer_num {
                 continue;

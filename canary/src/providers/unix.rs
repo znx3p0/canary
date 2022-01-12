@@ -1,4 +1,5 @@
 #![cfg(unix)]
+#![cfg(not(target_arch = "wasm32"))]
 
 use std::fmt::Debug;
 

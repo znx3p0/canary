@@ -38,7 +38,11 @@ derive_more = "0.99" # stable api
 # providers
 camino = "1"
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 async-tungstenite = { version = "0.16.1", features = [ "async-std-runtime" ] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+reqwasm = "0.4.0"
 
 # encryption
 rand = "0.8"

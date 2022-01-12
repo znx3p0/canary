@@ -4,8 +4,9 @@ mod unix;
 mod wss;
 
 pub use addr::*;
-pub use tcp::*;
 pub use wss::*;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub use tcp::*;
 #[cfg(unix)]
 pub use unix::*;

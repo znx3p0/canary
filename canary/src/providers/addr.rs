@@ -7,11 +7,16 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use super::{InsecureTcp, Tcp, Wss, InsecureWss};
+#[cfg(not(target_arch = "wasm32"))]
+use super::{InsecureTcp, Tcp};
+
+use super::{InsecureWss, Wss};
 
 #[cfg(unix)]
+#[cfg(not(target_arch = "wasm32"))]
 use super::{InsecureUnix, Unix};
 
+#[cfg(not(target_arch = "wasm32"))]
 use crate::runtime::JoinHandle;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
@@ -30,18 +35,16 @@ use crate::runtime::JoinHandle;
 pub enum Addr {
     /// tcp provider
     Tcp(Arc<SocketAddr>),
-    #[cfg(unix)]
     /// unix provider
     Unix(Arc<PathBuf>),
     /// unencrypted tcp provider
     InsecureTcp(Arc<SocketAddr>),
-    #[cfg(unix)]
     /// unencrypted unix provider
     InsecureUnix(Arc<PathBuf>),
     /// websocket provider
-    Wss(Arc<SocketAddr>),
+    Wss(Arc<CompactStr>),
     /// unencrypted websocket provider
-    InsecureWss(Arc<SocketAddr>),
+    InsecureWss(Arc<CompactStr>),
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
@@ -69,17 +72,7 @@ impl ServiceAddr {
 
     /// connect to the service
     pub async fn connect(&self) -> Result<Channel> {
-        match &self.0 {
-            Addr::Tcp(addrs) => Tcp::connect(addrs.as_ref(), &self.1).await,
-            Addr::InsecureTcp(addrs) => InsecureTcp::connect(addrs.as_ref(), &self.1).await,
-
-            #[cfg(unix)]
-            Addr::Unix(addrs) => Unix::connect(addrs.as_ref(), &self.1).await,
-            #[cfg(unix)]
-            Addr::InsecureUnix(addrs) => InsecureUnix::connect(addrs.as_ref(), &self.1).await,
-            Addr::Wss(addrs) => Wss::connect(addrs.as_ref(), &self.1).await,
-            Addr::InsecureWss(addrs) => InsecureWss::connect(addrs.as_ref(), &self.1).await,
-        }
+        self.0.connect(&self.1).await
     }
 }
 
@@ -93,6 +86,7 @@ impl Addr {
         ServiceAddr(self, id.into())
     }
     /// bind the address to the global route
+    #[cfg(not(target_arch = "wasm32"))]
     pub async fn bind(&self) -> Result<JoinHandle<Result<()>>> {
         match self {
             Addr::Tcp(addrs) => Tcp::bind(addrs.as_ref()).await,
@@ -101,22 +95,49 @@ impl Addr {
             Addr::Unix(addrs) => Unix::bind(addrs.as_ref()).await,
             #[cfg(unix)]
             Addr::InsecureUnix(addrs) => InsecureUnix::bind(addrs.as_ref()).await,
-            Addr::Wss(addrs) => Wss::bind(addrs.as_ref()).await,
-            Addr::InsecureWss(addrs) => InsecureWss::bind(addrs.as_ref()).await,
+            Addr::Wss(addrs) => Wss::bind(addrs.as_str()).await,
+            Addr::InsecureWss(addrs) => InsecureWss::bind(addrs.as_str()).await,
         }
     }
 
     /// connect to the address with the provided id
     pub async fn connect(&self, id: &str) -> Result<Channel> {
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
             Addr::Tcp(addrs) => Tcp::connect(addrs.as_ref(), id).await,
+            #[cfg(not(target_arch = "wasm32"))]
             Addr::InsecureTcp(addrs) => InsecureTcp::connect(addrs.as_ref(), id).await,
             #[cfg(unix)]
+            #[cfg(not(target_arch = "wasm32"))]
             Addr::Unix(addrs) => Unix::connect(addrs.as_ref(), id).await,
             #[cfg(unix)]
+            #[cfg(not(target_arch = "wasm32"))]
             Addr::InsecureUnix(addrs) => InsecureUnix::connect(addrs.as_ref(), id).await,
-            Addr::Wss(addrs) => Wss::connect(addrs.as_ref(), id).await,
-            Addr::InsecureWss(addrs) => InsecureWss::connect(addrs.as_ref(), id).await,
+
+            Addr::Wss(addrs) => Wss::connect(addrs.as_str(), id).await,
+            Addr::InsecureWss(addrs) => InsecureWss::connect(addrs.as_str(), id).await,
+
+            #[cfg(target_arch = "wasm32")]
+            Addr::Tcp(_) => err!((
+                unsupported,
+                "connecting to tcp providers is not supported on wasm"
+            )),
+            #[cfg(target_arch = "wasm32")]
+            Addr::InsecureTcp(_) => err!((
+                unsupported,
+                "connecting to tcp providers is not supported on wasm"
+            )),
+
+            #[cfg(target_arch = "wasm32")]
+            Addr::InsecureUnix(_) => err!((
+                unsupported,
+                "connecting to unix providers is not supported on wasm"
+            )),
+            #[cfg(target_arch = "wasm32")]
+            Addr::Unix(_) => err!((
+                unsupported,
+                "connecting to unix providers is not supported on wasm"
+            )),
         }
     }
 }
@@ -164,16 +185,16 @@ impl FromStr for Addr {
             }
             AddressType::Wss => {
                 let addr = addr
-                    .parse::<SocketAddr>()
+                    .parse::<CompactStr>()
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::Wss(Arc::new(addr))
-            },
+            }
             AddressType::InsecureWss => {
                 let addr = addr
-                    .parse::<SocketAddr>()
+                    .parse::<CompactStr>()
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::InsecureWss(Arc::new(addr))
-            },
+            }
         })
     }
 }
@@ -228,16 +249,16 @@ impl FromStr for ServiceAddr {
             }
             AddressType::Wss => {
                 let addr = addr
-                    .parse::<SocketAddr>()
+                    .parse::<CompactStr>()
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::Wss(Arc::new(addr))
-            },
+            }
             AddressType::InsecureWss => {
                 let addr = addr
-                    .parse::<SocketAddr>()
+                    .parse::<CompactStr>()
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::InsecureWss(Arc::new(addr))
-            },
+            }
         };
         Ok(ServiceAddr(addr, id))
     }
@@ -251,7 +272,7 @@ enum AddressType {
     #[cfg(unix)]
     InsecureUnix,
     Wss,
-    InsecureWss
+    InsecureWss,
 }
 
 impl FromStr for AddressType {

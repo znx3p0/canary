@@ -1,9 +1,20 @@
+#![allow(unused)]
+
 use crate::io::{Read, ReadExt, Write, WriteExt};
-use crate::{Result, err};
-use async_tungstenite::tungstenite::Message;
+use crate::{err, Result};
+
 use futures::SinkExt;
 use futures_lite::StreamExt;
 use serde::{de::DeserializeOwned, Serialize};
+
+#[cfg(not(target_arch = "wasm32"))]
+use async_tungstenite::tungstenite::Message;
+
+#[cfg(target_arch = "wasm32")]
+use crate::WSS;
+
+#[cfg(target_arch = "wasm32")]
+use reqwasm::websocket::Message;
 
 use super::formats::{ReadFormat, SendFormat};
 use super::zc;
@@ -37,7 +48,7 @@ where
     F::deserialize(&buf)
 }
 
-
+#[cfg(not(target_arch = "wasm32"))]
 /// send a message from a websocket stream
 pub async fn wss_tx<T, O, F: SendFormat>(st: &mut T, obj: O) -> Result<usize>
 where
@@ -47,20 +58,58 @@ where
     let serialized = F::serialize(&obj)?;
     let len = serialized.len();
     let msg = Message::Binary(serialized);
-    st.feed(msg).await
-        .map_err(|_| err!(broken_pipe, "websocket connection broke, unable to send message"))?;
-    st.flush().await
-        .map_err(|_| err!(broken_pipe, "websocket connection broke, unable to send message"))?;
+    st.feed(msg).await.map_err(|_| {
+        err!(
+            broken_pipe,
+            "websocket connection broke, unable to send message"
+        )
+    })?;
+    st.flush().await.map_err(|_| {
+        err!(
+            broken_pipe,
+            "websocket connection broke, unable to send message"
+        )
+    })?;
     Ok(len)
 }
 
+#[cfg(target_arch = "wasm32")]
+/// send a message from a websocket stream
+pub async fn wss_tx<T, O, F: SendFormat>(st: &mut T, obj: O) -> Result<usize>
+where
+    T: futures::prelude::Sink<Message> + Unpin,
+    O: Serialize,
+{
+    let serialized = F::serialize(&obj)?;
+    let len = serialized.len();
+    let msg = Message::Bytes(serialized);
+    st.feed(msg).await.map_err(|_| {
+        err!(
+            broken_pipe,
+            "websocket connection broke, unable to send message"
+        )
+    })?;
+    st.flush().await.map_err(|_| {
+        err!(
+            broken_pipe,
+            "websocket connection broke, unable to send message"
+        )
+    })?;
+    Ok(len)
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 /// receive a message from a websocket stream
 pub async fn wss_rx<T, O, F: ReadFormat>(st: &mut T) -> Result<O>
 where
-    T: futures::prelude::Stream<Item = std::result::Result<Message, async_tungstenite::tungstenite::Error>> + Unpin,
+    T: futures::prelude::Stream<
+            Item = std::result::Result<Message, async_tungstenite::tungstenite::Error>,
+        > + Unpin,
     O: DeserializeOwned,
 {
-    let msg = st.next().await
+    let msg = st
+        .next()
+        .await
         .ok_or(err!(broken_pipe, "websocket connection broke"))?
         .map_err(|e| err!(broken_pipe, e))?;
     match msg {
@@ -69,5 +118,26 @@ where
         Message::Ping(_) => err!((invalid_data, "expected binary message, found ping message")),
         Message::Pong(_) => err!((invalid_data, "expected binary message, found pong message")),
         Message::Close(_) => err!((invalid_data, "expected binary message, found close message")),
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+/// receive a message from a websocket stream
+pub async fn wss_rx<T, O, F: ReadFormat>(st: &mut T) -> Result<O>
+where
+    T: futures::prelude::Stream<
+            Item = std::result::Result<Message, reqwasm::websocket::WebSocketError>,
+        > + Unpin,
+    O: DeserializeOwned,
+{
+    let msg = st
+        .next()
+        .await
+        .ok_or(err!(broken_pipe, "websocket connection broke"))?
+        .map_err(|e| err!(broken_pipe, e.to_string()))?;
+
+    match msg {
+        Message::Bytes(vec) => F::deserialize(&vec),
+        Message::Text(_) => err!((invalid_data, "expected binary data, found text")),
     }
 }

@@ -1,3 +1,5 @@
+#![cfg(not(target_arch = "wasm32"))]
+
 use compact_str::CompactStr;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::sync::Arc;

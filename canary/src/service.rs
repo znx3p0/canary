@@ -1,6 +1,9 @@
+#[cfg(not(target_arch = "wasm32"))]
 use std::future::Future;
 
+#[cfg(not(target_arch = "wasm32"))]
 use crate::runtime::{self, spawn};
+
 use igcp::BareChannel;
 
 /// underlying service handle that is stored on a route
@@ -39,6 +42,7 @@ pub trait Service {
     fn service(meta: Self::Meta) -> Svc;
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// allows to enter a service without introducing the channel to the global route.
 pub trait StaticService {
     /// metadata of service
@@ -49,6 +53,7 @@ pub trait StaticService {
     fn introduce(meta: Self::Meta, c: Self::Chan) -> runtime::JoinHandle<crate::Result<()>>;
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 /// function used to create services from closures and functions
 pub fn run_metadata<M, T, X, C>(meta: M, s: X) -> Svc
 where

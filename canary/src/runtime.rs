@@ -1,4 +1,5 @@
 #![allow(unused_imports)]
+#![cfg(not(target_arch = "wasm32"))]
 
 #[cfg(not(any(feature = "rt-tokio", feature = "rt-async-std")))]
 compile_error!("one of 'rt-async-std' or 'rt-tokio' features must be enabled");
