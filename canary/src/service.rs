@@ -24,7 +24,7 @@ pub type Svc = Box<dyn Fn(BareChannel) + Send + Sync + 'static>;
 ///             channel.send("hello!").await?;
 ///             Ok(())
 ///         }
-///         ::canary::service::run_metadata(meta, inner)
+///         canary::service::run_metadata(meta, inner)
 ///     }
 /// }
 /// ```

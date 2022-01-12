@@ -1,11 +1,11 @@
 mod addr;
 mod tcp;
 mod unix;
-mod websocket;
+mod wss;
 
 pub use addr::*;
 pub use tcp::*;
-pub use websocket::*;
+pub use wss::*;
 
 #[cfg(unix)]
 pub use unix::*;

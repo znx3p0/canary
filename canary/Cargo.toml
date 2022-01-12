@@ -38,6 +38,8 @@ derive_more = "0.99" # stable api
 # providers
 camino = "1"
 
+async-tungstenite = { version = "0.16.1", features = [ "async-std-runtime" ] }
+
 # encryption
 rand = "0.8"
 snow = "0.8.0" # api may change

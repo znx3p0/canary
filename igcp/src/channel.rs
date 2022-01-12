@@ -10,7 +10,7 @@ use crate::io::{Read, TcpStream, Write};
 use crate::io::UnixStream;
 
 use crate::serialization::formats::{Any, Bincode, Bson, Json, Postcard, ReadFormat, SendFormat};
-use crate::serialization::{rx, tx};
+use crate::serialization::{rx, tx, wss_tx, wss_rx};
 use crate::type_iter::{MainChannel, PeerChannel, Pipeline};
 use crate::Result;
 
@@ -18,6 +18,8 @@ use crate::Result;
 pub type AnyChannel = Channel<AnyInput, Bincode>;
 /// read format that allows input with any serialization format. supports bincode, json, bson and postcard and deserializes in that order
 pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
+
+pub(crate) type WSS = async_tungstenite::WebSocketStream<TcpStream>;
 
 #[derive(From)]
 /// `Channel` abstracts network communications as object streams.
@@ -45,11 +47,17 @@ pub enum Channel<ReadFmt: ReadFormat = Bincode, SendFmt: SendFormat = Bincode> {
     /// unencrypted unix backend
     InsecureUnix(UnixStream),
 
+    /// encrypted wss backend
+    WSS(Snow<WSS>),
+    /// unencrypted wss backend
+    InsecureWSS(WSS),
+
     #[allow(non_camel_case_types)]
     /// used to hold the generic types, `Infallible` makes sure that this variant cannot
     /// be constructed without unsafe
     __InternalPhantomData__((PhantomData<(ReadFmt, SendFmt)>, core::convert::Infallible)),
 }
+
 
 #[derive(From)]
 /// `BareChannel` is a non-generic version of `Channel` used to make conversion between channels types easier
@@ -69,6 +77,10 @@ pub enum BareChannel {
     /// unencrypted unix backend
     #[cfg(unix)]
     InsecureUnix(UnixStream),
+    /// encrypted wss backend
+    WSS(Snow<WSS>),
+    /// unencrypted wss backend
+    InsecureWSS(WSS),
 }
 
 impl<R: ReadFormat, S: SendFormat> From<BareChannel> for Channel<R, S> {
@@ -83,6 +95,8 @@ impl<R: ReadFormat, S: SendFormat> From<BareChannel> for Channel<R, S> {
             BareChannel::Unix(s) => s.into(),
             #[cfg(unix)]
             BareChannel::InsecureUnix(s) => s.into(),
+            BareChannel::WSS(s) => s.into(),
+            BareChannel::InsecureWSS(s) => s.into(),
         }
     }
 }
@@ -90,12 +104,22 @@ impl<R: ReadFormat, S: SendFormat> From<BareChannel> for Channel<R, S> {
 /// wrapper trait to allow any type that implements `Read`, `Write`, `Send`, `Sync` and `'static`
 /// to use `Channel`
 pub trait ReadWrite: Read + Write + Unpin + Send + Sync + 'static {}
+
+/// wrapper trait to allow any type that implements `Read`, `Write`, `Send`, `Sync` and `'static`
+/// to use `Channel`, uses `futures` instead of `futures_lite`
+pub trait FuturesReadWrite: futures::prelude::AsyncRead + futures::prelude::AsyncWrite + Unpin + Send + Sync + 'static {}
+
 impl<T: Read + Write + 'static + Unpin + Send + Sync> ReadWrite for T {}
+impl<T: futures::prelude::AsyncRead + futures::prelude::AsyncWrite + Unpin + Send + Sync + 'static> FuturesReadWrite for T {}
 
 impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
     /// create a new channel from a tcp stream
     pub async fn new_tcp_encrypted(stream: TcpStream) -> Result<Self> {
         Ok(Snow::new(stream).await?.into())
+    }
+    /// create a new channel from a tcp stream
+    pub async fn new_wss_encrypted(stream: WSS) -> Result<Self> {
+        Ok(Snow::new_wss(stream).await?.into())
     }
     #[cfg(unix)]
     /// create a new channel from a unix stream
@@ -127,6 +151,10 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
             Channel::Unix(st) => st.tx::<_, SendFmt>(obj).await,
             #[cfg(unix)]
             Channel::InsecureUnix(st) => tx::<_, _, SendFmt>(st, obj).await,
+
+            Channel::WSS(st) => st.wss_tx::<_, SendFmt>(obj).await,
+            Channel::InsecureWSS(st) => wss_tx::<_, _, SendFmt>(st, obj).await,
+
             Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }
@@ -152,6 +180,9 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
             Channel::Unix(st) => st.rx::<_, ReadFmt>().await,
             #[cfg(unix)]
             Channel::InsecureUnix(st) => rx::<_, _, ReadFmt>(st).await,
+
+            Channel::WSS(st) => st.wss_rx::<_, ReadFmt>().await,
+            Channel::InsecureWSS(st) => wss_rx::<_, _, ReadFmt>(st).await,
 
             Channel::__InternalPhantomData__(_) => unreachable!(),
         }
@@ -188,6 +219,8 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
             #[cfg(unix)]
             Channel::InsecureUnix(s) => s.into(),
 
+            Channel::WSS(s) => s.into(),
+            Channel::InsecureWSS(s) => s.into(),
             Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }
@@ -204,6 +237,8 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
             #[cfg(unix)]
             Channel::InsecureUnix(s) => s.into(),
 
+            Channel::WSS(s) => s.into(),
+            Channel::InsecureWSS(s) => s.into(),
             Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }

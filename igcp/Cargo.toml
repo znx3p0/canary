@@ -13,6 +13,7 @@ license = "MIT"
 [dependencies]
 derive_more = "0.99"
 futures-lite = "1"
+futures = "0.3"
 
 # serde
 serde = { version = "1", features = [ "derive" ] }
@@ -27,5 +28,8 @@ postcard = { version = "0.7.2", features = [ "alloc" ] }
 # encryption
 snow = "0.8.0" # api may change
 rand = "0.8"
+
+# websocket support
+async-tungstenite = { version = "0.16.1", features = [ ] }
 
 async-std = { version = "1" }

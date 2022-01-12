@@ -68,7 +68,7 @@ impl Route {
             .0
             .insert(at.into(), Storable::Service(T::service(meta)))
         {
-            Some(_) => err!((in_use, format!("service `{at}` already exists"))),
+            Some(_) => err!((in_use, format!("service `{}` already exists", at))),
             None => Ok(()),
         }
     }

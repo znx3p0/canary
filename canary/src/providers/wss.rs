@@ -1,31 +1,32 @@
-#![cfg(unix)]
 
-use std::fmt::Debug;
+#![cfg(not(target_arch = "wasm32"))]
 
 use crate::routes::Status;
 use crate::routes::GLOBAL_ROUTE;
 use crate::runtime;
 use crate::runtime::JoinHandle;
 use crate::Result;
-use async_std::os::unix::net::UnixListener;
-use async_std::os::unix::net::UnixStream;
-use async_std::path::Path;
+use async_std::net::TcpListener;
+use async_std::net::TcpStream;
+use async_std::net::ToSocketAddrs;
+use async_tungstenite::tungstenite::protocol::Role;
 use igcp::err;
 use igcp::BareChannel;
 use igcp::Channel;
 
-/// Exposes routes over a Unix socket
-pub struct Unix(UnixListener);
+/// Exposes routes over WebSockets
+pub struct Wss(TcpListener);
 
-impl Unix {
+impl Wss {
     /// bind the global route on the given address
-    pub async fn bind(addrs: impl AsRef<Path>) -> Result<JoinHandle<Result<()>>> {
-        let listener = UnixListener::bind(addrs).await?;
+    pub async fn bind(addrs: impl ToSocketAddrs) -> Result<JoinHandle<Result<()>>> {
+        let listener = TcpListener::bind(addrs).await?;
         Ok(runtime::spawn(async move {
             loop {
                 let (stream, _) = listener.accept().await?;
                 runtime::spawn(async move {
-                    let chan: Channel = Channel::new_unix_encrypted(stream).await?;
+                    let stream = async_tungstenite::WebSocketStream::from_raw_socket(stream, Role::Server, None).await;
+                    let chan: Channel = Channel::new_wss_encrypted(stream).await?;
                     let chan: BareChannel = chan.bare();
                     GLOBAL_ROUTE.introduce_static_unspawn(chan).await?;
                     Ok::<_, igcp::Error>(())
@@ -35,17 +36,21 @@ impl Unix {
     }
     /// connect to the following address without discovery
     pub async fn raw_connect_with_retries(
-        addrs: impl AsRef<Path> + Debug,
+        addrs: impl ToSocketAddrs + std::fmt::Debug,
         retries: u32,
         time_to_retry: u64,
     ) -> Result<Channel> {
         let mut attempt = 0;
         let stream = loop {
-            match UnixStream::connect(&addrs).await {
-                Ok(s) => break s,
+            match TcpStream::connect(&addrs).await {
+                Ok(s) => {
+                    let ws = async_tungstenite::WebSocketStream::from_raw_socket(s, Role::Client, None)
+                        .await;
+                    break ws
+                },
                 Err(e) => {
                     tracing::error!(
-                        "connecting to address {:?} failed, attempt {} starting",
+                        "connecting to address `{:?}` failed, attempt {} starting",
                         addrs,
                         attempt
                     );
@@ -58,16 +63,16 @@ impl Unix {
                 }
             }
         };
-        let chan = Channel::new_unix_encrypted(stream).await?;
+        let chan = Channel::new_wss_encrypted(stream).await?;
         Ok(chan)
     }
     /// connect to the following address with the following id. Defaults to 3 retries.
-    pub async fn connect(addrs: impl AsRef<Path> + Debug, id: &str) -> Result<Channel> {
+    pub async fn connect(addrs: impl ToSocketAddrs + std::fmt::Debug, id: &str) -> Result<Channel> {
         Self::connect_retry(addrs, id, 3, 10).await
     }
     /// connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(
-        addrs: impl AsRef<Path> + Debug,
+        addrs: impl ToSocketAddrs + std::fmt::Debug,
         id: &str,
         retries: u32,
         time_to_retry: u64,
@@ -84,34 +89,44 @@ impl Unix {
     }
 }
 
-/// Exposes routes over a Unix socket without any encryption
-pub struct InsecureUnix(UnixListener);
 
-impl InsecureUnix {
+/// Exposes routes over WebSockets
+pub struct InsecureWss(TcpListener);
+
+impl InsecureWss {
     /// bind the global route on the given address
-    pub async fn bind(addrs: impl AsRef<Path>) -> Result<JoinHandle<Result<()>>> {
-        let listener = UnixListener::bind(addrs).await?;
+    pub async fn bind(addrs: impl ToSocketAddrs) -> Result<JoinHandle<Result<()>>> {
+        let listener = TcpListener::bind(addrs).await?;
         Ok(runtime::spawn(async move {
             loop {
                 let (stream, _) = listener.accept().await?;
-                let chan = BareChannel::InsecureUnix(stream);
-                GLOBAL_ROUTE.introduce_static(chan);
+                runtime::spawn(async move {
+                    let stream = async_tungstenite::WebSocketStream::from_raw_socket(stream, Role::Server, None).await;
+                    let chan: Channel = Channel::from(stream);
+                    let chan: BareChannel = chan.bare();
+                    GLOBAL_ROUTE.introduce_static_unspawn(chan).await?;
+                    Ok::<_, igcp::Error>(())
+                });
             }
         }))
     }
     /// connect to the following address without discovery
     pub async fn raw_connect_with_retries(
-        addrs: impl AsRef<Path> + Debug,
+        addrs: impl ToSocketAddrs + std::fmt::Debug,
         retries: u32,
         time_to_retry: u64,
     ) -> Result<Channel> {
         let mut attempt = 0;
         let stream = loop {
-            match UnixStream::connect(&addrs).await {
-                Ok(s) => break s,
+            match TcpStream::connect(&addrs).await {
+                Ok(s) => {
+                    let ws = async_tungstenite::WebSocketStream::from_raw_socket(s, Role::Client, None)
+                        .await;
+                    break ws
+                },
                 Err(e) => {
                     tracing::error!(
-                        "connecting to address {:?} failed, attempt {} starting",
+                        "connecting to address `{:?}` failed, attempt {} starting",
                         addrs,
                         attempt
                     );
@@ -124,15 +139,16 @@ impl InsecureUnix {
                 }
             }
         };
-        Ok(Channel::InsecureUnix(stream))
+        let chan = Channel::from(stream);
+        Ok(chan)
     }
     /// connect to the following address with the following id. Defaults to 3 retries.
-    pub async fn connect(addrs: impl AsRef<Path> + Debug, id: &str) -> Result<Channel> {
+    pub async fn connect(addrs: impl ToSocketAddrs + std::fmt::Debug, id: &str) -> Result<Channel> {
         Self::connect_retry(addrs, id, 3, 10).await
     }
     /// connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(
-        addrs: impl AsRef<Path> + Debug,
+        addrs: impl ToSocketAddrs + std::fmt::Debug,
         id: &str,
         retries: u32,
         time_to_retry: u64,

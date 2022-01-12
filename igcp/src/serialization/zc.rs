@@ -46,7 +46,7 @@ pub(crate) fn try_vec<T: Default + Clone>(size: usize) -> Result<Vec<T>> {
     buf.try_reserve(size as usize).or_else(|e| {
         err!((
             out_of_memory,
-            format!("failed to reserve {size} bytes, error: {:?}", e)
+            format!("failed to reserve {} bytes, error: {:?}", size, e)
         ))
     })?;
     buf.resize(size as usize, T::default());
