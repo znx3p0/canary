@@ -125,6 +125,7 @@ pub fn service(attrs: TokenStream, tokens: TokenStream) -> TokenStream {
     quote!(
         #[allow(non_camel_case_types)]
         #vis struct #name;
+        #[cfg(not(target_arch = "wasm32"))]
         impl ::canary::service::Service for #name {
             const ENDPOINT: &'static str = #endpoint;
             type Pipeline = #pipeline;
@@ -221,6 +222,7 @@ fn impl_route(_attrs: TokenStream, mut item: ItemImpl) -> TokenStream {
             )*
 
 
+            #[cfg(not(target_arch = "wasm32"))]
             impl ::canary::routes::Register for #name {
                 type Meta = ::std::sync::Arc<Self>;
                 fn register(top_route: &::canary::routes::Route, meta: Self::Meta) -> ::canary::Result<()> {
