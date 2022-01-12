@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use super::{InsecureTcp, Tcp};
+use super::{InsecureTcp, Tcp, Wss, InsecureWss};
 
 #[cfg(unix)]
 use super::{InsecureUnix, Unix};
@@ -33,11 +33,15 @@ pub enum Addr {
     #[cfg(unix)]
     /// unix provider
     Unix(Arc<PathBuf>),
-    /// insecure tcp provider
+    /// unencrypted tcp provider
     InsecureTcp(Arc<SocketAddr>),
     #[cfg(unix)]
-    /// insecure unix provider
+    /// unencrypted unix provider
     InsecureUnix(Arc<PathBuf>),
+    /// websocket provider
+    Wss(Arc<SocketAddr>),
+    /// unencrypted websocket provider
+    InsecureWss(Arc<SocketAddr>),
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
@@ -73,6 +77,8 @@ impl ServiceAddr {
             Addr::Unix(addrs) => Unix::connect(addrs.as_ref(), &self.1).await,
             #[cfg(unix)]
             Addr::InsecureUnix(addrs) => InsecureUnix::connect(addrs.as_ref(), &self.1).await,
+            Addr::Wss(addrs) => Wss::connect(addrs.as_ref(), &self.1).await,
+            Addr::InsecureWss(addrs) => InsecureWss::connect(addrs.as_ref(), &self.1).await,
         }
     }
 }
@@ -95,6 +101,8 @@ impl Addr {
             Addr::Unix(addrs) => Unix::bind(addrs.as_ref()).await,
             #[cfg(unix)]
             Addr::InsecureUnix(addrs) => InsecureUnix::bind(addrs.as_ref()).await,
+            Addr::Wss(addrs) => Wss::bind(addrs.as_ref()).await,
+            Addr::InsecureWss(addrs) => InsecureWss::bind(addrs.as_ref()).await,
         }
     }
 
@@ -107,6 +115,8 @@ impl Addr {
             Addr::Unix(addrs) => Unix::connect(addrs.as_ref(), id).await,
             #[cfg(unix)]
             Addr::InsecureUnix(addrs) => InsecureUnix::connect(addrs.as_ref(), id).await,
+            Addr::Wss(addrs) => Wss::connect(addrs.as_ref(), id).await,
+            Addr::InsecureWss(addrs) => InsecureWss::connect(addrs.as_ref(), id).await,
         }
     }
 }
@@ -152,6 +162,18 @@ impl FromStr for Addr {
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::InsecureUnix(Arc::new(addr))
             }
+            AddressType::Wss => {
+                let addr = addr
+                    .parse::<SocketAddr>()
+                    .map_err(|e| err!(invalid_input, e))?;
+                Addr::Wss(Arc::new(addr))
+            },
+            AddressType::InsecureWss => {
+                let addr = addr
+                    .parse::<SocketAddr>()
+                    .map_err(|e| err!(invalid_input, e))?;
+                Addr::InsecureWss(Arc::new(addr))
+            },
         })
     }
 }
@@ -204,6 +226,18 @@ impl FromStr for ServiceAddr {
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::InsecureUnix(Arc::new(addr))
             }
+            AddressType::Wss => {
+                let addr = addr
+                    .parse::<SocketAddr>()
+                    .map_err(|e| err!(invalid_input, e))?;
+                Addr::Wss(Arc::new(addr))
+            },
+            AddressType::InsecureWss => {
+                let addr = addr
+                    .parse::<SocketAddr>()
+                    .map_err(|e| err!(invalid_input, e))?;
+                Addr::InsecureWss(Arc::new(addr))
+            },
         };
         Ok(ServiceAddr(addr, id))
     }
@@ -216,6 +250,8 @@ enum AddressType {
     Unix,
     #[cfg(unix)]
     InsecureUnix,
+    Wss,
+    InsecureWss
 }
 
 impl FromStr for AddressType {
@@ -225,6 +261,8 @@ impl FromStr for AddressType {
         let protocol = match protocol {
             "tcp" => AddressType::Tcp,
             "itcp" => AddressType::InsecureTcp,
+            "wss" => AddressType::Wss,
+            "ws" => AddressType::InsecureWss,
             #[cfg(unix)]
             "unix" => AddressType::Unix,
             #[cfg(unix)]
