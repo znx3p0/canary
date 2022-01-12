@@ -26,7 +26,10 @@ use crate::Result;
 use async_tungstenite::tungstenite::protocol::Role;
 
 use igcp::err;
+
+#[cfg(not(target_arch = "wasm32"))]
 use igcp::BareChannel;
+
 use igcp::Channel;
 
 #[cfg(not(target_arch = "wasm32"))]
