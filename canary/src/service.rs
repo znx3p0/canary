@@ -4,10 +4,13 @@ use std::future::Future;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::runtime::{self, spawn};
 
+#[cfg(not(target_arch = "wasm32"))]
+use crate::routes::Ctx;
+
 use igcp::BareChannel;
 
 /// underlying service handle that is stored on a route
-pub type Svc = Box<dyn Fn(BareChannel) + Send + Sync + 'static>;
+pub type Svc = Box<dyn Fn(BareChannel, Ctx) + Send + Sync + 'static>;
 
 /// Services are backed by this trait.
 /// Services fundamentally only have metadata,
@@ -59,12 +62,12 @@ pub fn run_metadata<M, T, X, C>(meta: M, s: X) -> Svc
 where
     T: Future<Output = crate::Result<()>> + Send + 'static,
     C: From<BareChannel>,
-    X: Fn(M, C) -> T,
+    X: Fn(M, C, Ctx) -> T,
     X: Send + Sync + 'static,
     M: Send + Clone + Sync + 'static,
 {
-    Box::new(move |chan| {
-        let s = s(meta.clone(), C::from(chan));
+    Box::new(move |chan, ctx| {
+        let s = s(meta.clone(), C::from(chan), ctx);
         spawn(async move {
             s.await.ok();
         });

@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![forbid(missing_docs)]
+#![deny(missing_docs)]
 
 //! # Canary
 //! Canary is a library for making communication through the network easy.
@@ -36,3 +36,4 @@ pub use serde::{Deserialize, Serialize};
 pub use igcp::Result;
 pub use providers::Addr;
 pub use providers::ServiceAddr;
+pub use routes::Ctx;
