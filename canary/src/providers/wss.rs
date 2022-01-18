@@ -1,5 +1,5 @@
 #[cfg(not(target_arch = "wasm32"))]
-use crate::routes::Status;
+use crate::discovery::Status;
 
 #[cfg(target_arch = "wasm32")]
 #[derive(serde_repr::Serialize_repr, serde_repr::Deserialize_repr)]
@@ -50,10 +50,9 @@ impl Wss {
                     let stream = async_tungstenite::accept_async(stream)
                         .await
                         .map_err(|e| err!(e.to_string()))?;
-                    // let stream = async_tungstenite::WebSocketStream::from_raw_socket(stream, Role::Server, None).await;
                     let chan: Channel = Channel::new_wss_encrypted(stream).await?;
                     let chan: BareChannel = chan.bare();
-                    GLOBAL_ROUTE.introduce_static_unspawn(chan).await?;
+                    GLOBAL_ROUTE.introduce(chan).await?;
                     Ok::<_, igcp::Error>(())
                 });
             }
@@ -192,7 +191,7 @@ impl InsecureWss {
                     .await;
                     let chan: Channel = Channel::new_wss_encrypted(stream).await?;
                     let chan: BareChannel = chan.bare();
-                    GLOBAL_ROUTE.introduce_static_unspawn(chan).await?;
+                    GLOBAL_ROUTE.introduce(chan).await?;
                     Ok::<_, igcp::Error>(())
                 });
             }

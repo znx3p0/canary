@@ -1,6 +1,6 @@
 #![cfg(not(target_arch = "wasm32"))]
 
-use crate::routes::Status;
+use crate::discovery::Status;
 use crate::routes::GLOBAL_ROUTE;
 use crate::runtime;
 use crate::runtime::JoinHandle;
@@ -26,7 +26,7 @@ impl Tcp {
                 runtime::spawn(async move {
                     let chan: Channel = Channel::new_tcp_encrypted(stream).await?;
                     let chan: BareChannel = chan.bare();
-                    GLOBAL_ROUTE.introduce_static_unspawn(chan).await?;
+                    GLOBAL_ROUTE.introduce(chan).await?;
                     Ok::<_, igcp::Error>(())
                 });
             }
@@ -94,7 +94,7 @@ impl InsecureTcp {
             loop {
                 let (stream, _) = listener.accept().await?;
                 let chan = BareChannel::InsecureTcp(stream);
-                GLOBAL_ROUTE.introduce_static(chan);
+                GLOBAL_ROUTE.introduce(chan).await?;
             }
         }))
     }

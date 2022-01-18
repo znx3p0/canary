@@ -3,7 +3,7 @@
 
 use std::fmt::Debug;
 
-use crate::routes::Status;
+use crate::discovery::Status;
 use crate::routes::GLOBAL_ROUTE;
 use crate::runtime;
 use crate::runtime::JoinHandle;
@@ -28,7 +28,7 @@ impl Unix {
                 runtime::spawn(async move {
                     let chan: Channel = Channel::new_unix_encrypted(stream).await?;
                     let chan: BareChannel = chan.bare();
-                    GLOBAL_ROUTE.introduce_static_unspawn(chan).await?;
+                    GLOBAL_ROUTE.introduce(chan).await?;
                     Ok::<_, igcp::Error>(())
                 });
             }
@@ -96,7 +96,7 @@ impl InsecureUnix {
             loop {
                 let (stream, _) = listener.accept().await?;
                 let chan = BareChannel::InsecureUnix(stream);
-                GLOBAL_ROUTE.introduce_static(chan);
+                GLOBAL_ROUTE.introduce(chan).await?;
             }
         }))
     }

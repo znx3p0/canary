@@ -2,15 +2,19 @@
 use std::future::Future;
 
 #[cfg(not(target_arch = "wasm32"))]
-use crate::runtime::{self, spawn};
+use crate::runtime::{self, spawn, JoinHandle};
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::routes::Ctx;
 
 use igcp::BareChannel;
+use igcp::Channel;
+use crate::Result;
+use crate::discovery::Status;
 
+#[cfg(not(target_arch = "wasm32"))]
 /// underlying service handle that is stored on a route
-pub type Svc = Box<dyn Fn(BareChannel, Ctx) + Send + Sync + 'static>;
+pub type Svc = Box<dyn Fn(BareChannel, Ctx, bool) -> JoinHandle<Result<()>> + Send + Sync + 'static>;
 
 /// Services are backed by this trait.
 /// Services fundamentally only have metadata,
@@ -58,18 +62,32 @@ pub trait StaticService {
 
 #[cfg(not(target_arch = "wasm32"))]
 /// function used to create services from closures and functions
-pub fn run_metadata<M, T, X, C>(meta: M, s: X) -> Svc
+pub fn run_metadata<M, T, X, C>(meta: M, svc: X) -> Svc
 where
     T: Future<Output = crate::Result<()>> + Send + 'static,
-    C: From<BareChannel>,
+    C: From<BareChannel> + Send,
     X: Fn(M, C, Ctx) -> T,
-    X: Send + Sync + 'static,
+    X: Send + Sync + 'static + Clone,
     M: Send + Clone + Sync + 'static,
 {
-    Box::new(move |chan, ctx| {
-        let s = s(meta.clone(), C::from(chan), ctx);
+
+    Box::new(move |chan, ctx, discover| {
+        let meta = meta.clone();
+        let svc = svc.clone();
         spawn(async move {
-            s.await.ok();
-        });
+            let mut chan: Channel = chan.into();
+            if discover {
+                chan.send(Status::Found).await?;
+                let chan = C::from(chan.bare());
+                let svc = svc(meta, chan, ctx);
+                svc.await?;
+            } else {
+                let chan = C::from(chan.bare());
+                let svc = svc(meta, chan, ctx);
+                svc.await?;
+            }
+            Ok(())
+        })
     })
 }
+
