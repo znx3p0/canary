@@ -1,27 +1,20 @@
 use crate::discovery::Status;
-
-#[cfg(not(target_arch = "wasm32"))]
-use crate::routes::GLOBAL_ROUTE;
-
-#[cfg(not(target_arch = "wasm32"))]
-use crate::runtime;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::runtime::JoinHandle;
-
 use crate::Result;
 
-#[cfg(not(target_arch = "wasm32"))]
-use async_tungstenite::tungstenite::protocol::Role;
-
+use cfg_if::cfg_if;
 use igcp::err;
-
-#[cfg(not(target_arch = "wasm32"))]
-use igcp::BareChannel;
-
 use igcp::Channel;
 
-#[cfg(not(target_arch = "wasm32"))]
-use async_std::net::{TcpListener, TcpStream, ToSocketAddrs};
+cfg_if! {
+    if #[cfg(not(target_arch = "wasm32"))] {
+        use crate::routes::GLOBAL_ROUTE;
+        use crate::runtime;
+        use crate::runtime::JoinHandle;
+        use async_tungstenite::tungstenite::protocol::Role;
+        use igcp::BareChannel;
+        use async_std::net::{TcpListener, TcpStream, ToSocketAddrs};
+    }
+}
 
 /// Exposes routes over WebSockets
 pub struct Wss(#[cfg(not(target_arch = "wasm32"))] TcpListener);

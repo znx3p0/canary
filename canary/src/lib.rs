@@ -37,4 +37,6 @@ pub use serde::{Deserialize, Serialize};
 pub use igcp::Result;
 pub use providers::Addr;
 pub use providers::ServiceAddr;
+
+#[cfg(not(target_arch = "wasm32"))]
 pub use routes::Ctx;

@@ -1,4 +1,5 @@
 use crate::Result;
+use cfg_if::cfg_if;
 use compact_str::CompactStr;
 use igcp::{err, Channel, Error};
 use serde::{Deserialize, Serialize};
@@ -8,17 +9,17 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::{fmt::Display, net::SocketAddr};
 
-#[cfg(not(target_arch = "wasm32"))]
-use super::{InsecureTcp, Tcp};
-
 use super::{InsecureWss, Wss};
 
-#[cfg(unix)]
-#[cfg(not(target_arch = "wasm32"))]
-use super::{InsecureUnix, Unix};
+cfg_if! {
+    if #[cfg(not(target_arch = "wasm32"))] {
+        use super::{InsecureTcp, Tcp};
+        use crate::runtime::JoinHandle;
 
-#[cfg(not(target_arch = "wasm32"))]
-use crate::runtime::JoinHandle;
+        #[cfg(unix)]
+        use super::{InsecureUnix, Unix};
+    }
+}
 
 #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 /// Represents the address of a provider.
@@ -194,60 +195,89 @@ impl Addr {
         ServiceAddr(self, id.into())
     }
     #[inline]
-    /// bind the address to the global route
     #[cfg(not(target_arch = "wasm32"))]
+    /// bind the address to the global route
     pub async fn bind(&self) -> Result<JoinHandle<Result<()>>> {
-        match self {
-            Addr::Tcp(addrs) => Tcp::bind(addrs.as_ref()).await,
-            Addr::InsecureTcp(addrs) => InsecureTcp::bind(addrs.as_ref()).await,
-            #[cfg(unix)]
-            Addr::Unix(addrs) => Unix::bind(addrs.as_ref()).await,
-            #[cfg(unix)]
-            Addr::InsecureUnix(addrs) => InsecureUnix::bind(addrs.as_ref()).await,
-            Addr::Wss(addrs) => Wss::bind(addrs.as_str()).await,
-            Addr::InsecureWss(addrs) => InsecureWss::bind(addrs.as_str()).await,
+        cfg_if! {
+            if #[cfg(unix)] {
+                match self {
+                    Addr::Tcp(addrs) => Tcp::bind(addrs.as_ref()).await,
+                    Addr::InsecureTcp(addrs) => InsecureTcp::bind(addrs.as_ref()).await,
+                    Addr::Unix(addrs) => Unix::bind(addrs.as_ref()).await,
+                    Addr::InsecureUnix(addrs) => InsecureUnix::bind(addrs.as_ref()).await,
+                    Addr::Wss(addrs) => Wss::bind(addrs.as_str()).await,
+                    Addr::InsecureWss(addrs) => InsecureWss::bind(addrs.as_str()).await,
+                }
+            } else {
+                match self {
+                    Addr::Tcp(addrs) => Tcp::bind(addrs.as_ref()).await,
+                    Addr::InsecureTcp(addrs) => InsecureTcp::bind(addrs.as_ref()).await,
+                    Addr::Wss(addrs) => Wss::bind(addrs.as_str()).await,
+                    Addr::InsecureWss(addrs) => InsecureWss::bind(addrs.as_str()).await,
+                    Addr::Unix(_) => err!((
+                        unsupported,
+                        "binding an unix provider is not supported on non-unix platforms"
+                    )),
+                    Addr::InsecureUnix(_) => err!((
+                        unsupported,
+                        "binding an unix provider is not supported on non-unix platforms"
+                    )),
+                }
+            }
         }
     }
 
     #[inline]
     /// connect to the address with the provided id
     pub async fn connect(&self, id: &str) -> Result<Channel> {
-        match self {
-            #[cfg(not(target_arch = "wasm32"))]
-            Addr::Tcp(addrs) => Tcp::connect(addrs.as_ref(), id).await,
-            #[cfg(not(target_arch = "wasm32"))]
-            Addr::InsecureTcp(addrs) => InsecureTcp::connect(addrs.as_ref(), id).await,
-            #[cfg(unix)]
-            #[cfg(not(target_arch = "wasm32"))]
-            Addr::Unix(addrs) => Unix::connect(addrs.as_ref(), id).await,
-            #[cfg(unix)]
-            #[cfg(not(target_arch = "wasm32"))]
-            Addr::InsecureUnix(addrs) => InsecureUnix::connect(addrs.as_ref(), id).await,
+        cfg_if! {
+            if #[cfg(target_arch = "wasm32")] {
+                match self {
+                    Addr::Wss(addrs) => Wss::connect(addrs.as_str(), id).await,
+                    Addr::InsecureWss(addrs) => InsecureWss::connect(addrs.as_str(), id).await,
+                    Addr::Tcp(_) => err!((
+                        unsupported,
+                        "connecting to tcp providers is not supported on wasm"
+                    )),
+                    Addr::InsecureTcp(_) => err!((
+                        unsupported,
+                        "connecting to tcp providers is not supported on wasm"
+                    )),
+                    Addr::InsecureUnix(_) => err!((
+                        unsupported,
+                        "connecting to unix providers is not supported on wasm"
+                    )),
+                    Addr::Unix(_) => err!((
+                        unsupported,
+                        "connecting to unix providers is not supported on wasm"
+                    )),
+                }
+            } else if #[cfg(unix)] {
+                match self {
+                    Addr::Tcp(addrs) => Tcp::connect(addrs.as_ref(), id).await,
+                    Addr::InsecureTcp(addrs) => InsecureTcp::connect(addrs.as_ref(), id).await,
+                    Addr::Unix(addrs) => Unix::connect(addrs.as_ref(), id).await,
+                    Addr::InsecureUnix(addrs) => InsecureUnix::connect(addrs.as_ref(), id).await,
 
-            Addr::Wss(addrs) => Wss::connect(addrs.as_str(), id).await,
-            Addr::InsecureWss(addrs) => InsecureWss::connect(addrs.as_str(), id).await,
-
-            #[cfg(target_arch = "wasm32")]
-            Addr::Tcp(_) => err!((
-                unsupported,
-                "connecting to tcp providers is not supported on wasm"
-            )),
-            #[cfg(target_arch = "wasm32")]
-            Addr::InsecureTcp(_) => err!((
-                unsupported,
-                "connecting to tcp providers is not supported on wasm"
-            )),
-
-            #[cfg(target_arch = "wasm32")]
-            Addr::InsecureUnix(_) => err!((
-                unsupported,
-                "connecting to unix providers is not supported on wasm"
-            )),
-            #[cfg(target_arch = "wasm32")]
-            Addr::Unix(_) => err!((
-                unsupported,
-                "connecting to unix providers is not supported on wasm"
-            )),
+                    Addr::Wss(addrs) => Wss::connect(addrs.as_str(), id).await,
+                    Addr::InsecureWss(addrs) => InsecureWss::connect(addrs.as_str(), id).await,
+                }
+            } else {
+                match self {
+                    Addr::Tcp(addrs) => Tcp::connect(addrs.as_ref(), id).await,
+                    Addr::InsecureTcp(addrs) => InsecureTcp::connect(addrs.as_ref(), id).await,
+                    Addr::Wss(addrs) => Wss::connect(addrs.as_str(), id).await,
+                    Addr::InsecureWss(addrs) => InsecureWss::connect(addrs.as_str(), id).await,
+                    Addr::Unix(_) => err!((
+                        unsupported,
+                        "connecting to unix providers is not supported on non-unix platforms"
+                    )),
+                    Addr::InsecureUnix(_) => err!((
+                        unsupported,
+                        "connecting to unix providers is not supported on non-unix platforms"
+                    )),
+                }
+            }
         }
     }
 }
@@ -259,7 +289,7 @@ impl FromStr for Addr {
     /// unix@address.sock://cluster
     /// tcp@127.0.0.1:8092://cluster
     /// tcp@127.0.0.1:8092://cluster
-    /// unix@a/address.sock://cluster
+    /// unix@folder/address.sock://cluster
     fn from_str(s: &str) -> Result<Self> {
         let (protocol, addr) = s
             .rsplit_once("@")
@@ -272,7 +302,6 @@ impl FromStr for Addr {
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::Tcp(Arc::new(addr))
             }
-            #[cfg(unix)]
             AddressType::Unix => {
                 let addr = addr
                     .parse::<PathBuf>()
@@ -285,7 +314,6 @@ impl FromStr for Addr {
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::InsecureTcp(Arc::new(addr))
             }
-            #[cfg(unix)]
             AddressType::InsecureUnix => {
                 let addr = addr
                     .parse::<PathBuf>()
@@ -330,10 +358,8 @@ enum AddressType {
     Tcp,
     #[serde(rename = "itcp")]
     InsecureTcp,
-    #[cfg(unix)]
     #[serde(rename = "unix")]
     Unix,
-    #[cfg(unix)]
     #[serde(rename = "iunix")]
     InsecureUnix,
     #[serde(rename = "wss")]
@@ -352,14 +378,8 @@ impl FromStr for AddressType {
             "itcp" => AddressType::InsecureTcp,
             "wss" => AddressType::Wss,
             "ws" => AddressType::InsecureWss,
-            #[cfg(unix)]
             "unix" => AddressType::Unix,
-            #[cfg(unix)]
             "iunix" => AddressType::InsecureUnix,
-            #[cfg(not(unix))]
-            "unix" => err!((unsupported, "Unix is not supported on non-unix targets"))?,
-            #[cfg(not(unix))]
-            "iunix" => err!((unsupported, "Unix is not supported on non-unix targets"))?,
             protocol => err!((invalid_input, format!("unexpected protocol {:?}", protocol)))?,
         };
         Ok(protocol)

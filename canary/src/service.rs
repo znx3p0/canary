@@ -1,18 +1,12 @@
-#[cfg(not(target_arch = "wasm32"))]
-use std::future::Future;
-
-#[cfg(not(target_arch = "wasm32"))]
-use crate::runtime::{spawn, JoinHandle};
-
-#[cfg(not(target_arch = "wasm32"))]
-use crate::routes::Ctx;
+#![cfg(not(target_arch = "wasm32"))]
 
 use crate::discovery::Status;
+use crate::routes::Ctx;
+use crate::runtime::{spawn, JoinHandle};
 use crate::Result;
-use igcp::BareChannel;
-use igcp::Channel;
+use igcp::{BareChannel, Channel};
+use std::future::Future;
 
-#[cfg(not(target_arch = "wasm32"))]
 /// underlying service handle that is stored on a route
 pub type Svc =
     Box<dyn Fn(BareChannel, Ctx, bool) -> JoinHandle<Result<()>> + Send + Sync + 'static>;
@@ -51,7 +45,6 @@ pub trait Service {
     fn service(meta: Self::Meta) -> Svc;
 }
 
-#[cfg(not(target_arch = "wasm32"))]
 /// function used to create services from closures and functions
 pub fn run_metadata<M, T, X, C>(meta: M, svc: X) -> Svc
 where
