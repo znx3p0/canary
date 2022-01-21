@@ -49,6 +49,7 @@ pub struct Ctx {
 }
 
 impl Ctx {
+    /// create a new context from the route and id
     pub fn new(top_route: Route, id: RouteKey) -> Self {
         Self { top_route, id }
     }
