@@ -2,10 +2,11 @@ use crate::Result;
 use compact_str::CompactStr;
 use igcp::{err, Channel, Error};
 use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
+use std::fmt::Debug;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::{fmt::Display, net::SocketAddr};
 
 #[cfg(not(target_arch = "wasm32"))]
 use super::{InsecureTcp, Tcp};
@@ -19,7 +20,7 @@ use super::{InsecureUnix, Unix};
 #[cfg(not(target_arch = "wasm32"))]
 use crate::runtime::JoinHandle;
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 /// Represents the address of a provider.
 /// ```norun
 /// let tcp = "tcp@127.0.0.1:8080".parse::<Addr>()?;
@@ -47,29 +48,134 @@ pub enum Addr {
     InsecureWss(Arc<CompactStr>),
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
+impl Into<String> for &Addr {
+    #[inline]
+    fn into(self) -> String {
+        match self {
+            Addr::Tcp(addr) => {
+                format!("tcp@{}", addr)
+            }
+            Addr::Unix(addr) => {
+                format!("unix@{}", addr.to_string_lossy())
+            }
+            Addr::InsecureTcp(addr) => {
+                format!("itcp@{}", addr)
+            }
+            Addr::InsecureUnix(addr) => {
+                format!("iunix@{}", addr.to_string_lossy())
+            }
+            Addr::Wss(addr) => {
+                format!("wss@{}", addr)
+            }
+            Addr::InsecureWss(addr) => {
+                format!("ws@{}", addr)
+            }
+        }
+    }
+}
+
+impl Display for Addr {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string: String = self.into();
+        f.write_str(&string)
+    }
+}
+
+impl Debug for Addr {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string: String = self.into();
+        f.write_str(&string)
+    }
+}
+
+impl Serialize for Addr {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let string: String = self.into();
+        serializer.serialize_str(&string)
+    }
+}
+
+impl<'de> Deserialize<'de> for Addr {
+    #[inline]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let string = CompactStr::deserialize(deserializer)?;
+        Addr::from_str(&string).map_err(serde::de::Error::custom)
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 /// Represents the full address of a service.
 /// ```norun
-/// let service = "my_service://tcp@127.0.0.1:8080".parse::<ServiceAddr>()?;
+/// let service = "tcp@127.0.0.1:8080://my_service".parse::<ServiceAddr>()?;
 ///
 /// let chan = service.connect().await?;
 /// ```
 pub struct ServiceAddr(Addr, CompactStr);
 
+impl Serialize for ServiceAddr {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let string = format!("{}://{}", self.0, self.1);
+        string.serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for ServiceAddr {
+    #[inline]
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let string = CompactStr::deserialize(deserializer)?;
+        ServiceAddr::from_str(&string).map_err(serde::de::Error::custom)
+    }
+}
+
+impl Into<String> for &ServiceAddr {
+    #[inline]
+    fn into(self) -> String {
+        format!("{}://{}", self.0, self.1)
+    }
+}
+
+impl Display for ServiceAddr {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string: String = self.into();
+        f.write_str(&string)
+    }
+}
+
 impl ServiceAddr {
+    #[inline]
     /// create a new service address from a string
     pub fn new(addr: &str) -> Result<Self> {
         addr.parse()
     }
+    #[inline]
     /// get the underlying address from the service
     pub fn addr(&self) -> &Addr {
         &self.0
     }
+    #[inline]
     /// take the underlying address from the service
     pub fn take_addr(self) -> Addr {
         self.0
     }
 
+    #[inline]
     /// connect to the service
     pub async fn connect(&self) -> Result<Channel> {
         self.0.connect(&self.1).await
@@ -77,14 +183,17 @@ impl ServiceAddr {
 }
 
 impl Addr {
+    #[inline]
     /// create a new address from a string
     pub fn new(addr: &str) -> Result<Self> {
         addr.parse()
     }
+    #[inline]
     /// create a service address by tying the address to an id
     pub fn service(self, id: impl Into<CompactStr>) -> ServiceAddr {
         ServiceAddr(self, id.into())
     }
+    #[inline]
     /// bind the address to the global route
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn bind(&self) -> Result<JoinHandle<Result<()>>> {
@@ -100,6 +209,7 @@ impl Addr {
         }
     }
 
+    #[inline]
     /// connect to the address with the provided id
     pub async fn connect(&self, id: &str) -> Result<Channel> {
         match self {
@@ -145,17 +255,16 @@ impl Addr {
 impl FromStr for Addr {
     type Err = Error;
 
-    /// unix@address.sock
-    /// tcp@127.0.0.1:8092
-    /// cluster://tcp@127.0.0.1:8092
-    /// cluster://unix@a/address.sock
+    #[inline]
+    /// unix@address.sock://cluster
+    /// tcp@127.0.0.1:8092://cluster
+    /// tcp@127.0.0.1:8092://cluster
+    /// unix@a/address.sock://cluster
     fn from_str(s: &str) -> Result<Self> {
-        let mut s = s.split("@");
-        let address_ty = {
-            let protocol = s.next().ok_or(err!(invalid_input, "protocol not found"))?;
-            protocol.parse::<AddressType>()?
-        };
-        let addr = s.next().ok_or(err!(invalid_input, "address not found"))?;
+        let (protocol, addr) = s
+            .rsplit_once("@")
+            .ok_or(err!(invalid_input, "malformed address"))?;
+        let address_ty = protocol.parse::<AddressType>()?;
         Ok(match address_ty {
             AddressType::Tcp => {
                 let addr = addr
@@ -202,82 +311,41 @@ impl FromStr for Addr {
 impl FromStr for ServiceAddr {
     type Err = Error;
 
-    /// cluster://unix@address.sock
-    /// cluster://tcp@127.0.0.1:8080
+    #[inline]
+    /// unix@address.sock://service
+    /// tcp@127.0.0.1:8080://service
     fn from_str(s: &str) -> Result<Self> {
-        let mut s = s.split("://");
-        let id = s
-            .next()
-            .ok_or(err!(invalid_input, "id of service not found"))?;
+        let (addr, id) = s
+            .rsplit_once("://")
+            .ok_or(err!(invalid_input, "malformed service address"))?;
         let id = CompactStr::new_inline(id);
-
-        let mut s = s
-            .next()
-            .ok_or(err!(invalid_input, "id of service not found"))?
-            .split("@");
-        let address_ty = {
-            let protocol = s.next().ok_or(err!(invalid_input, "protocol not found"))?;
-            protocol.parse::<AddressType>()?
-        };
-        let addr = s.next().ok_or(err!(invalid_input, "address not found"))?;
-        let addr = match address_ty {
-            AddressType::Tcp => {
-                let addr = addr
-                    .parse::<SocketAddr>()
-                    .map_err(|e| err!(invalid_input, e))?;
-                Addr::Tcp(Arc::new(addr))
-            }
-            #[cfg(unix)]
-            AddressType::Unix => {
-                let addr = addr
-                    .parse::<PathBuf>()
-                    .map_err(|e| err!(invalid_input, e))?;
-                Addr::Unix(Arc::new(addr))
-            }
-            AddressType::InsecureTcp => {
-                let addr = addr
-                    .parse::<SocketAddr>()
-                    .map_err(|e| err!(invalid_input, e))?;
-                Addr::InsecureTcp(Arc::new(addr))
-            }
-            #[cfg(unix)]
-            AddressType::InsecureUnix => {
-                let addr = addr
-                    .parse::<PathBuf>()
-                    .map_err(|e| err!(invalid_input, e))?;
-                Addr::InsecureUnix(Arc::new(addr))
-            }
-            AddressType::Wss => {
-                let addr = addr
-                    .parse::<CompactStr>()
-                    .map_err(|e| err!(invalid_input, e))?;
-                Addr::Wss(Arc::new(addr))
-            }
-            AddressType::InsecureWss => {
-                let addr = addr
-                    .parse::<CompactStr>()
-                    .map_err(|e| err!(invalid_input, e))?;
-                Addr::InsecureWss(Arc::new(addr))
-            }
-        };
+        let addr = addr.parse()?;
         Ok(ServiceAddr(addr, id))
     }
 }
 
+#[derive(Serialize, Deserialize)]
 enum AddressType {
+    #[serde(rename = "tcp")]
     Tcp,
+    #[serde(rename = "itcp")]
     InsecureTcp,
     #[cfg(unix)]
+    #[serde(rename = "unix")]
     Unix,
     #[cfg(unix)]
+    #[serde(rename = "iunix")]
     InsecureUnix,
+    #[serde(rename = "wss")]
     Wss,
+    #[serde(rename = "ws")]
     InsecureWss,
 }
 
 impl FromStr for AddressType {
     type Err = Error;
 
+    #[inline]
     fn from_str(protocol: &str) -> Result<Self> {
         let protocol = match protocol {
             "tcp" => AddressType::Tcp,
@@ -295,5 +363,19 @@ impl FromStr for AddressType {
             protocol => err!((invalid_input, format!("unexpected protocol {:?}", protocol)))?,
         };
         Ok(protocol)
+    }
+}
+
+impl AsRef<str> for AddressType {
+    #[inline]
+    fn as_ref(&self) -> &str {
+        match self {
+            AddressType::Tcp => "tcp",
+            AddressType::InsecureTcp => "itcp",
+            AddressType::Unix => "unix",
+            AddressType::InsecureUnix => "iunix",
+            AddressType::Wss => "wss",
+            AddressType::InsecureWss => "ws",
+        }
     }
 }

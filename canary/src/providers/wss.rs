@@ -1,16 +1,4 @@
-#[cfg(not(target_arch = "wasm32"))]
 use crate::discovery::Status;
-
-#[cfg(target_arch = "wasm32")]
-#[derive(serde_repr::Serialize_repr, serde_repr::Deserialize_repr)]
-#[repr(u8)]
-/// used for discovery
-pub enum Status {
-    /// indicates a service has been found
-    Found = 1,
-    /// indicates a service has not been found
-    NotFound = 2,
-}
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::routes::GLOBAL_ROUTE;
@@ -40,6 +28,7 @@ pub struct Wss(#[cfg(not(target_arch = "wasm32"))] TcpListener);
 
 #[cfg(not(target_arch = "wasm32"))]
 impl Wss {
+    #[inline]
     /// bind the global route on the given address
     pub async fn bind(addrs: impl ToSocketAddrs) -> Result<JoinHandle<Result<()>>> {
         let listener = TcpListener::bind(addrs).await?;
@@ -58,6 +47,7 @@ impl Wss {
             }
         }))
     }
+    #[inline]
     /// connect to the following address without discovery
     pub async fn raw_connect_with_retries(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
@@ -95,10 +85,12 @@ impl Wss {
         let chan = Channel::new_wss_encrypted(stream).await?;
         Ok(chan)
     }
+    #[inline]
     /// connect to the following address with the following id. Defaults to 3 retries.
     pub async fn connect(addrs: impl ToSocketAddrs + std::fmt::Debug, id: &str) -> Result<Channel> {
         Self::connect_retry(addrs, id, 3, 10).await
     }
+    #[inline]
     /// connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
@@ -120,6 +112,7 @@ impl Wss {
 
 #[cfg(target_arch = "wasm32")]
 impl Wss {
+    #[inline]
     /// connect to the following address without discovery
     pub async fn raw_connect_with_retries(
         addrs: &str,
@@ -148,10 +141,12 @@ impl Wss {
         let chan = Channel::new_wss_encrypted(stream).await?;
         Ok(chan)
     }
+    #[inline]
     /// connect to the following address with the following id. Defaults to 3 retries.
     pub async fn connect(addrs: &str, id: &str) -> Result<Channel> {
         Self::connect_retry(addrs, id, 3, 10).await
     }
+    #[inline]
     /// connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(
         addrs: &str,
@@ -176,6 +171,7 @@ pub struct InsecureWss(#[cfg(not(target_arch = "wasm32"))] TcpListener);
 
 #[cfg(not(target_arch = "wasm32"))]
 impl InsecureWss {
+    #[inline]
     /// bind the global route on the given address
     pub async fn bind(addrs: impl ToSocketAddrs) -> Result<JoinHandle<Result<()>>> {
         let listener = TcpListener::bind(addrs).await?;
@@ -197,6 +193,7 @@ impl InsecureWss {
             }
         }))
     }
+    #[inline]
     /// connect to the following address without discovery
     pub async fn raw_connect_with_retries(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
@@ -232,10 +229,12 @@ impl InsecureWss {
         let chan = Channel::new_wss_encrypted(stream).await?;
         Ok(chan)
     }
+    #[inline]
     /// connect to the following address with the following id. Defaults to 3 retries.
     pub async fn connect(addrs: impl ToSocketAddrs + std::fmt::Debug, id: &str) -> Result<Channel> {
         Self::connect_retry(addrs, id, 3, 10).await
     }
+    #[inline]
     /// connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
@@ -257,6 +256,7 @@ impl InsecureWss {
 
 #[cfg(target_arch = "wasm32")]
 impl InsecureWss {
+    #[inline]
     /// connect to the following address without discovery
     pub async fn raw_connect_with_retries(
         addrs: &str,
@@ -285,10 +285,12 @@ impl InsecureWss {
         let chan = Channel::from(stream);
         Ok(chan)
     }
+    #[inline]
     /// connect to the following address with the following id. Defaults to 3 retries.
     pub async fn connect(addrs: &str, id: &str) -> Result<Channel> {
         Self::connect_retry(addrs, id, 3, 10).await
     }
+    #[inline]
     /// connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(
         addrs: &str,

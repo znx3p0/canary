@@ -17,6 +17,7 @@ use std::fmt::Debug;
 pub struct Tcp(TcpListener);
 
 impl Tcp {
+    #[inline]
     /// bind the global route on the given address
     pub async fn bind(addrs: impl ToSocketAddrs) -> Result<JoinHandle<Result<()>>> {
         let listener = TcpListener::bind(addrs).await?;
@@ -32,6 +33,7 @@ impl Tcp {
             }
         }))
     }
+    #[inline]
     /// connect to the following address without discovery
     pub async fn raw_connect_with_retries(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
@@ -60,10 +62,12 @@ impl Tcp {
         let chan = Channel::new_tcp_encrypted(stream).await?;
         Ok(chan)
     }
+    #[inline]
     /// connect to the following address with the following id. Defaults to 3 retries.
     pub async fn connect(addrs: impl ToSocketAddrs + std::fmt::Debug, id: &str) -> Result<Channel> {
         Self::connect_retry(addrs, id, 3, 10).await
     }
+    #[inline]
     /// connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
@@ -87,6 +91,7 @@ impl Tcp {
 pub struct InsecureTcp(TcpListener);
 
 impl InsecureTcp {
+    #[inline]
     /// bind the global route on the given address
     pub async fn bind(addrs: impl ToSocketAddrs) -> Result<JoinHandle<Result<()>>> {
         let listener = TcpListener::bind(addrs).await?;
@@ -98,6 +103,7 @@ impl InsecureTcp {
             }
         }))
     }
+    #[inline]
     /// connect to the following address without discovery
     pub async fn raw_connect_with_retries(
         addrs: impl ToSocketAddrs + Debug,
@@ -125,10 +131,12 @@ impl InsecureTcp {
         };
         Ok(Channel::InsecureTcp(stream))
     }
+    #[inline]
     /// connect to the following address with the following id. Defaults to 3 retries.
     pub async fn connect(addrs: impl ToSocketAddrs + Debug, id: &str) -> Result<Channel> {
         Self::connect_retry(addrs, id, 3, 10).await
     }
+    #[inline]
     /// connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(
         addrs: impl ToSocketAddrs + Debug,

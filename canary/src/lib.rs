@@ -19,6 +19,7 @@
 //! you should use [the book](https://znx3p0.github.io/canary-book/),
 //! and any questions should be asked in [the discord](https://discord.gg/QaWxMzAZs8)
 
+pub mod discovery;
 /// offers providers, which expose services through the network
 pub mod providers;
 /// offers the routing system used by services
@@ -27,7 +28,6 @@ pub mod routes;
 pub mod runtime;
 /// offers services and helper traits
 pub mod service;
-pub mod discovery;
 
 pub use canary_macro::*;
 pub use igcp;
