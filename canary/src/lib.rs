@@ -21,6 +21,8 @@
 
 /// contains discovery structures
 pub mod discovery;
+/// offers the main types needed to use canary
+pub mod prelude;
 /// offers providers, which expose services through the network
 pub mod providers;
 /// offers the routing system used by services
@@ -29,8 +31,6 @@ pub mod routes;
 pub mod runtime;
 /// offers services and helper traits
 pub mod service;
-/// offers the main types needed to use canary
-pub mod prelude;
 
 pub use canary_macro::*;
 pub use igcp;
