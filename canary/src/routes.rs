@@ -16,6 +16,7 @@ use crate::Result;
 type RouteKey = CompactStr;
 
 #[derive(From)]
+#[doc(hidden)]
 pub struct InnerRoute {
     map: DashMap<RouteKey, Storable>,
 }
@@ -23,14 +24,18 @@ pub struct InnerRoute {
 /// used for discovering services.
 /// it stores services inside with a key and it can introduce channels to services.
 pub enum Route {
+    /// static reference to route, used for global routes
     Static(&'static InnerRoute),
-    Dynamic(Arc<InnerRoute>, RouteKey), // tree structure makes sure that arc cannot outlive inner, hence no possibilty of memory leaks
+    /// route built dynamically
+    Dynamic(Arc<InnerRoute>, RouteKey), // tree structure makes sure that arc cannot outlive inner, hence no possibility for memory leaks
 }
 
 impl Route {
+    /// create a new dynamic route from the name
     pub fn new_dynamic(name: impl Into<RouteKey>) -> Self {
         Route::Dynamic(Arc::new(InnerRoute::from(DashMap::new())), name.into())
     }
+    /// create a new static route from a static reference
     pub fn new_static(route: &'static InnerRoute) -> Self {
         Route::Static(route)
     }
@@ -106,18 +111,26 @@ impl Context for (Arc<InnerRoute>, RouteKey) {
     }
 }
 
+/// encapsulates basic route methods
 pub trait RouteLike: Sized {
+    /// add service at the specified id
     fn add_service_at<T: Service>(&self, at: &str, meta: T::Meta) -> Result<()>;
+    /// remove the service or route at the specified id
     fn remove_at(&self, at: &str) -> Result<()>;
+    /// switch a channel to a service at the specified id with the specified discovery.
+    /// if discovery is enabled, a `Status::Found` will be sent
     fn switch_raw(
         &self,
         at: &str,
         chan: BareChannel,
         discover: bool,
     ) -> std::result::Result<(), BareChannel>;
+    /// inserts the given route at the specified id
     fn insert_route_at(&self, at: &str, route: Route) -> Result<()>;
+    /// call the register implementation of a type on the route
     fn register<T: Register>(&self, meta: T::Meta) -> Result<()>;
     #[inline]
+    /// call the register implementation of a type on the route with the default metadata
     fn register_default<T: Register>(&self) -> Result<()>
     where
         T::Meta: Default,
@@ -125,6 +138,7 @@ pub trait RouteLike: Sized {
         self.register::<T>(Default::default())
     }
     #[inline]
+    /// create a new route and insert it at the specified id, return the context of the inserted route
     fn add_route_at(&self, at: &str) -> Result<Ctx> {
         let route = Route::new_dynamic(at);
         let ctx = route.context();
@@ -133,19 +147,23 @@ pub trait RouteLike: Sized {
     }
 
     #[inline]
+    /// switch a channel to the specified id without discovery
     fn switch(&self, at: &str, chan: BareChannel) -> std::result::Result<(), BareChannel> {
         self.switch_raw(at, chan, false)
     }
 
     #[inline]
+    /// remove service from the route
     fn remove_service<T: Service>(self) -> Result<()> {
         self.remove_at(T::ENDPOINT)
     }
     #[inline]
+    /// add service to the route with the given metadata
     fn add_service<T: Service>(&self, meta: T::Meta) -> Result<()> {
         self.add_service_at::<T>(T::ENDPOINT, meta)
     }
     #[inline]
+    /// add service to the route with default metadata
     fn add_service_default<T: Service>(&self) -> Result<()>
     where
         T::Meta: Default,
@@ -298,6 +316,7 @@ impl RouteLike for Arc<InnerRoute> {
 
 impl Route {
     #[inline]
+    /// create a new context from the route
     pub fn context(&self) -> Ctx {
         match self {
             Route::Static(ctx) => ctx.context(),
@@ -305,6 +324,7 @@ impl Route {
         }
     }
 
+    /// call the register implementation of a type on the route
     pub fn register<T: Register>(&self, meta: T::Meta) -> Result<()> {
         match self {
             Route::Static(ctx) => ctx.register::<T>(meta),
@@ -312,6 +332,7 @@ impl Route {
         }
     }
 
+    /// call the register implementation of a type on the route with the default metadata
     pub fn register_default<T: Register>(&self) -> Result<()>
     where
         T::Meta: Default,
@@ -322,6 +343,7 @@ impl Route {
         }
     }
 
+    /// add service to the route with the given metadata
     pub fn add_service<T: Service>(&self, meta: T::Meta) -> Result<()> {
         match self {
             Route::Static(ctx) => ctx.add_service::<T>(meta),
@@ -329,6 +351,7 @@ impl Route {
         }
     }
 
+    /// add service at the specified id
     pub fn add_service_at<T: Service>(&self, at: &str, meta: T::Meta) -> Result<()> {
         match self {
             Route::Static(ctx) => ctx.add_service_at::<T>(at, meta),
@@ -336,6 +359,7 @@ impl Route {
         }
     }
 
+    /// add service to the route with default metadata
     pub fn add_service_default<T: Service>(&self) -> Result<()>
     where
         T::Meta: Default,
@@ -347,6 +371,7 @@ impl Route {
     }
 
     #[inline]
+    /// remove the service or route at the specified id
     pub fn remove_at(&self, at: &str) -> Result<()> {
         match self {
             Route::Static(ctx) => ctx.remove_at(at),
@@ -355,6 +380,7 @@ impl Route {
     }
 
     #[inline]
+    /// switch a channel to the specified id without discovery
     pub fn switch(&self, at: &str, chan: BareChannel) -> std::result::Result<(), BareChannel> {
         match self {
             Route::Static(ctx) => ctx.switch(at, chan),
@@ -363,6 +389,8 @@ impl Route {
     }
 
     #[inline]
+    /// switch a channel to a service at the specified id with the specified discovery.
+    /// if discovery is enabled, a `Status::Found` will be sent
     pub fn switch_raw(
         &self,
         at: &str,
@@ -376,6 +404,7 @@ impl Route {
     }
 
     #[inline]
+    /// inserts the given route at the specified id
     pub fn insert_route_at(&self, at: &str, route: Route) -> Result<()> {
         match self {
             Route::Static(ctx) => ctx.insert_route_at(at, route),
@@ -384,6 +413,7 @@ impl Route {
     }
 
     #[inline]
+    /// create a new route and insert it at the specified id, return the context of the inserted route
     pub fn add_route_at(&self, at: &str) -> Result<Ctx> {
         match self {
             Route::Static(ctx) => ctx.add_route_at(at),
@@ -392,6 +422,9 @@ impl Route {
     }
 
     #[inline]
+    /// introduce channel to the service with discovery.
+    /// this receives the service id, sends the status to the channel
+    /// and executes the corresponding service if found.
     pub async fn introduce(&self, chan: BareChannel) -> Result<()> {
         let mut chan: Channel = chan.into();
         let at = chan.receive::<RouteKey>().await?;
@@ -402,6 +435,7 @@ impl Route {
         Ok(())
     }
 
+    /// show the contents of the route. should only be used for debugging
     pub fn show(&self) {
         match self {
             Route::Static(route) => {

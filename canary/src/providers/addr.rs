@@ -113,7 +113,7 @@ impl<'de> Deserialize<'de> for Addr {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 /// Represents the full address of a service.
 /// ```norun
 /// let service = "tcp@127.0.0.1:8080://my_service".parse::<ServiceAddr>()?;
@@ -152,6 +152,14 @@ impl Into<String> for &ServiceAddr {
 }
 
 impl Display for ServiceAddr {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let string: String = self.into();
+        f.write_str(&string)
+    }
+}
+
+impl Debug for ServiceAddr {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string: String = self.into();

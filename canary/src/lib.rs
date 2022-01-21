@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 
 //! # Canary
 //! Canary is a library for making communication through the network easy.
