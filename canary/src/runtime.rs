@@ -29,5 +29,7 @@ cfg_if::cfg_if! {
             let rt = tokio::runtime::Runtime::new().unwrap();
             rt.block_on(future)
         }
+    } else {
+        compile_error!("one of 'rt-async-std' or 'rt-tokio' features must be enabled");
     }
 }

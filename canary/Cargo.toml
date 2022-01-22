@@ -25,6 +25,7 @@ compact_str = { version = "0.2", features = [ "serde" ] }
 async-std = { version = "1", features = [ "unstable" ] } # stable api
 tokio = { version = "1", features = [ "rt-multi-thread", "macros", "time" ], optional = true } # stable api
 tracing = "0.1" # stable api
+ahash = "0.7.6" # faster hashing for routes
 
 # ergonomics
 canary-macro = { path = "../canary-macro", version = "0.1.1" }

@@ -13,12 +13,14 @@ use crate::discovery::Status;
 use crate::service::{Service, Svc};
 use crate::Result;
 
+use ahash::RandomState;
+
 type RouteKey = CompactStr;
 
-#[derive(From)]
+#[derive(From, Default)]
 #[doc(hidden)]
 pub struct InnerRoute {
-    map: DashMap<RouteKey, Storable>,
+    map: DashMap<RouteKey, Storable, RandomState>,
 }
 
 /// used for discovering services.
@@ -33,7 +35,7 @@ pub enum Route {
 impl Route {
     /// create a new dynamic route from the name
     pub fn new_dynamic(name: impl Into<RouteKey>) -> Self {
-        Route::Dynamic(Arc::new(InnerRoute::from(DashMap::new())), name.into())
+        Route::Dynamic(Arc::new(Default::default()), name.into())
     }
     /// create a new static route from a static reference
     pub fn new_static(route: &'static InnerRoute) -> Self {
@@ -88,7 +90,7 @@ pub trait Register {
 
 /// global route on which initial services are laid on
 pub static GLOBAL_ROUTE: Lazy<Route> = Lazy::new(|| {
-    let route = Box::new(InnerRoute::from(DashMap::new()));
+    let route = Box::new(InnerRoute::default());
     let route: &'static InnerRoute = Box::leak(route);
     Route::new_static(route)
 });

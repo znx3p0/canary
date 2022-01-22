@@ -61,14 +61,10 @@ where
             let mut chan: Channel = chan.into();
             if discover {
                 chan.send(Status::Found).await?;
-                let chan = C::from(chan.bare());
-                let svc = svc(meta, chan, ctx);
-                svc.await?;
-            } else {
-                let chan = C::from(chan.bare());
-                let svc = svc(meta, chan, ctx);
-                svc.await?;
             }
+            let chan = C::from(chan.bare());
+            let svc = svc(meta, chan, ctx);
+            svc.await?;
             Ok(())
         })
     })

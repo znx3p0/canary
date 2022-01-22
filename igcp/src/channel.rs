@@ -41,11 +41,12 @@ pub enum Channel<ReadFmt: ReadFormat = Bincode, SendFmt: SendFormat = Bincode> {
     #[cfg(not(target_arch = "wasm32"))]
     /// encrypted tcp backend
     Tcp(Snow<TcpStream>),
-    /// encrypted backend for any type that implements Read + Write
-    EncryptedAny(Snow<Box<dyn ReadWrite>>),
     #[cfg(not(target_arch = "wasm32"))]
     /// unencrypted tcp backend
     InsecureTcp(TcpStream),
+
+    /// encrypted backend for any type that implements Read + Write
+    EncryptedAny(Snow<Box<dyn ReadWrite>>),
     /// unencrypted backend for any type that implements Read + Write
     InsecureAny(Box<dyn ReadWrite>),
 
@@ -98,6 +99,7 @@ pub enum BareChannel {
 }
 
 impl<R: ReadFormat, S: SendFormat> From<BareChannel> for Channel<R, S> {
+    #[inline]
     fn from(c: BareChannel) -> Self {
         match c {
             #[cfg(not(target_arch = "wasm32"))]
@@ -123,19 +125,7 @@ impl<R: ReadFormat, S: SendFormat> From<BareChannel> for Channel<R, S> {
 /// to use `Channel`
 pub trait ReadWrite: Read + Write + Unpin + Send + Sync + 'static {}
 
-/// wrapper trait to allow any type that implements `Read`, `Write`, `Send`, `Sync` and `'static`
-/// to use `Channel`, uses `futures` instead of `futures_lite`
-pub trait FuturesReadWrite:
-    futures::prelude::AsyncRead + futures::prelude::AsyncWrite + Unpin + Send + Sync + 'static
-{
-}
-
 impl<T: Read + Write + 'static + Unpin + Send + Sync> ReadWrite for T {}
-impl<
-        T: futures::prelude::AsyncRead + futures::prelude::AsyncWrite + Unpin + Send + Sync + 'static,
-    > FuturesReadWrite for T
-{
-}
 
 impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
     #[cfg(not(target_arch = "wasm32"))]
@@ -163,11 +153,11 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
     /// send message to stream
     /// ```norun
     /// async fn service(mut peer: Channel) -> Result<()> {
-    ///     peer.tx(123).await?;
+    ///     peer.send(123).await?;
     ///     Ok(())
     /// }
     /// ```
-    pub async fn tx<O: Serialize>(&mut self, obj: O) -> Result<usize> {
+    pub async fn send<O: Serialize>(&mut self, obj: O) -> Result<usize> {
         match self {
             #[cfg(not(target_arch = "wasm32"))]
             Channel::Tcp(st) => st.tx::<_, SendFmt>(obj).await,
@@ -189,18 +179,24 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
             Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }
-    /// send an object through the wire and return the size of the object sent
-    pub async fn send<O: Serialize>(&mut self, obj: O) -> Result<usize> {
-        self.tx(obj).await
+    /// alias to the `.send` method
+    /// ```norun
+    /// async fn service(mut peer: Channel) -> Result<()> {
+    ///     peer.tx(123).await?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn tx<O: Serialize>(&mut self, obj: O) -> Result<usize> {
+        self.send(obj).await
     }
     /// receive message from stream
     /// ```norun
     /// async fn service(mut peer: Channel) -> Result<()> {
-    ///     let num: u64 = peer.rx().await?;
+    ///     let num: u64 = peer.receive().await?;
     ///     Ok(())
     /// }
     /// ```
-    pub async fn rx<O: DeserializeOwned>(&mut self) -> Result<O> {
+    pub async fn receive<O: DeserializeOwned>(&mut self) -> Result<O> {
         match self {
             #[cfg(not(target_arch = "wasm32"))]
             Channel::Tcp(st) => st.rx::<_, ReadFmt>().await,
@@ -222,15 +218,16 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
             Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }
-    /// receive message from stream
+    /// alias of the `.receive` method.
+    /// Receive message from stream
     /// ```norun
     /// async fn service(mut peer: Channel) -> Result<()> {
-    ///     let num: u64 = peer.receive().await?;
+    ///     let num: u64 = peer.rx().await?;
     ///     Ok(())
     /// }
     /// ```
-    pub async fn receive<O: DeserializeOwned>(&mut self) -> Result<O> {
-        self.rx().await
+    pub async fn rx<O: DeserializeOwned>(&mut self) -> Result<O> {
+        self.receive().await
     }
     /// construct a typed wrapper for a channel using pipelines, its asymmetric peer is `PeerChannel`
     pub fn new_main<P: Pipeline>(self) -> MainChannel<P::Pipe, ReadFmt, SendFmt> {
@@ -241,7 +238,7 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
         PeerChannel(Default::default(), self)
     }
     /// coerce a channel into another kind of channel:
-    /// Channel -> Channel<Json, Bincode> -> AnyChannel
+    /// `Channel` -> `Channel<Json, Bincode>` -> `AnyChannel`
     pub fn coerce<R: ReadFormat, S: SendFormat>(self) -> Channel<R, S> {
         match self {
             #[cfg(not(target_arch = "wasm32"))]
@@ -263,6 +260,7 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
             Channel::__InternalPhantomData__(_) => unreachable!(),
         }
     }
+    #[inline]
     /// make the channel bare, stripping it from its generics
     pub fn bare(self) -> BareChannel {
         match self {
