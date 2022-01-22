@@ -170,6 +170,14 @@ pub trait RouteLike: Sized {
     {
         self.add_service::<T>(Default::default())
     }
+    #[inline]
+    /// add service to the route with default metadata
+    fn add_service_default_at<T: Service>(&self, at: &str) -> Result<()>
+    where
+        T::Meta: Default,
+    {
+        self.add_service_at::<T>(at, Default::default())
+    }
 }
 
 impl RouteLike for &'static InnerRoute {
@@ -321,6 +329,18 @@ impl Route {
         match self {
             Route::Static(ctx) => ctx.context(),
             Route::Dynamic(ctx, at) => (ctx.clone(), at.clone()).context(),
+        }
+    }
+
+    #[inline]
+    /// add service to the route with default metadata
+    pub fn add_service_default_at<T: Service>(&self, at: &str) -> Result<()>
+    where
+        T::Meta: Default,
+    {
+        match self {
+            Route::Static(ctx) => ctx.add_service_at::<T>(at, Default::default()),
+            Route::Dynamic(ctx, _) => ctx.add_service_at::<T>(at, Default::default()),
         }
     }
 
