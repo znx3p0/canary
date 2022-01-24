@@ -29,7 +29,7 @@ postcard = { version = "0.7.2", features = [ "alloc" ] }
 snow = "0.8.0" # api may change
 rand = "0.8"
 
-
+cfg-if = "1"
 async-std = { version = "1" }
 
 # websocket support
@@ -40,3 +40,7 @@ async-tungstenite = { version = "0.16.1", features = [ ] }
 reqwasm = "0.4.0"
 getrandom = { version = "~0.2.3", features = ["js"] }
 uuid = { version = "~0.8.2", features = ["wasm-bindgen"] }
+
+[features]
+handwritten-futures = []
+default = [ "handwritten-futures" ]
