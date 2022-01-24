@@ -1,6 +1,6 @@
 [package]
 name = "canary"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 
 repository = "https://github.com/znx3p0/canary"
@@ -28,10 +28,10 @@ tracing = "0.1" # stable api
 ahash = "0.7.6" # faster hashing for routes
 
 # ergonomics
-canary-macro = { path = "../canary-macro", version = "0.1.1" }
+canary-macro = { path = "../canary-macro" }
 
 # communications
-igcp = { path = "../igcp", version = "0.1.1" }
+igcp = { path = "../igcp" }
 
 # compile time
 derive_more = "0.99" # stable api
