@@ -14,7 +14,7 @@ pub struct Snow<T> {
     transport: TransportState,
 }
 
-const PACKET_LEN: u64 = 64000;
+const PACKET_LEN: u64 = 65519;
 
 impl<T> Snow<T> {
     fn encrypt_packets(&mut self, buf: &[u8]) -> Result<Vec<u8>> {

@@ -28,10 +28,10 @@ tracing = "0.1" # stable api
 ahash = "0.7.6" # faster hashing for routes
 
 # ergonomics
-canary-macro = { path = "../canary-macro" }
+canary-macro = { path = "../canary-macro", version = "0.1.3" }
 
 # communications
-igcp = { path = "../igcp" }
+igcp = { path = "../igcp", version = "0.1.4" }
 
 # compile time
 derive_more = "0.99" # stable api
@@ -57,5 +57,4 @@ doctest = false
 rt-tokio = [ "tokio" ]
 rt-async-std = [  ]
 
-# default = [ "rt-tokio" ]
 default = [ "rt-async-std" ]
