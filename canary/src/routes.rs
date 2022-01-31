@@ -4,23 +4,23 @@ use compact_str::CompactStr;
 use derive_more::From;
 use std::sync::Arc;
 
+use ahash::RandomState;
 use camino::Utf8Path;
-use dashmap::DashMap;
 use igcp::{err, BareChannel, Channel};
-use once_cell::sync::Lazy;
 
 use crate::discovery::Status;
 use crate::service::{Service, Svc};
 use crate::Result;
 
-use ahash::RandomState;
+use dashmap::DashMap;
+use once_cell::sync::Lazy;
+type RouteMap = DashMap<RouteKey, Storable, RandomState>;
 
 type RouteKey = CompactStr;
-
 #[derive(From, Default)]
 #[doc(hidden)]
 pub struct InnerRoute {
-    map: DashMap<RouteKey, Storable, RandomState>,
+    map: RouteMap,
 }
 
 /// used for discovering services.
@@ -119,6 +119,10 @@ pub trait RouteLike: Sized {
     fn add_service_at<T: Service>(&self, at: &str, meta: T::Meta) -> Result<()>;
     /// remove the service or route at the specified id
     fn remove_at(&self, at: &str) -> Result<()>;
+
+    // adds a raw service at the specified id
+    // fn add_raw_service_at(&self, at: &str, svc: impl Into<Svc>) -> Result<()>;
+
     /// switch a channel to a service at the specified id with the specified discovery.
     /// if discovery is enabled, a `Status::Found` will be sent
     fn switch_raw(

@@ -22,16 +22,16 @@ once_cell = "1" # stable api
 compact_str = { version = "0.2", features = [ "serde" ] }
 
 # runtime
-async-std = { version = "1", features = [ "unstable" ] } # stable api
+async-std = { version = "1", features = [ "unstable" ], optional = true } # stable api
 tokio = { version = "1", features = [ "rt-multi-thread", "macros", "time" ], optional = true } # stable api
 tracing = "0.1" # stable api
-ahash = "0.7.6" # faster hashing for routes
+ahash = "0.7" # faster hashing for routes
 
 # ergonomics
 canary-macro = { path = "../canary-macro", version = "0.1.3" }
 
 # communications
-igcp = { path = "../igcp", version = "0.1.4" }
+igcp = { path = "../igcp", version = "0.1.4", default-features = false }
 
 # compile time
 derive_more = "0.99" # stable api
@@ -41,7 +41,7 @@ cfg-if = "1.0.0"
 camino = "1"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-async-tungstenite = { version = "0.16.1", features = [ "async-std-runtime" ] }
+async-tungstenite = { version = "0.16.1" }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 reqwasm = "0.4.0"
@@ -54,7 +54,10 @@ snow = "0.8.0" # api may change
 doctest = false
 
 [features]
-rt-tokio = [ "tokio" ]
-rt-async-std = [  ]
+tokio-rt = [ "tokio", "igcp/tokio-net", "async-tungstenite/tokio-runtime" ]
+async-std-rt = [ "async-std", "igcp/async-std-net", "async-tungstenite/async-std-runtime" ]
+wasm = [ "igcp/wasm" ]
+single-threaded = []
+default = [ "tokio-rt", "single-threaded" ]
 
-default = [ "rt-async-std" ]
+# default = [ "async-std-rt" ]

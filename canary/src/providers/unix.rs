@@ -4,25 +4,49 @@
 use std::fmt::Debug;
 
 use crate::discovery::Status;
+use crate::io::UnixListener;
+use crate::io::UnixStream;
 use crate::routes::GLOBAL_ROUTE;
 use crate::runtime;
 use crate::runtime::JoinHandle;
 use crate::Result;
-use async_std::os::unix::net::UnixListener;
-use async_std::os::unix::net::UnixStream;
-use async_std::path::Path;
 use igcp::err;
 use igcp::BareChannel;
 use igcp::Channel;
+
+#[cfg(feature = "async-std-rt")]
+use async_std::path::Path;
+#[cfg(feature = "tokio-rt")]
+use std::path::Path;
 
 /// Exposes routes over a Unix socket
 pub struct Unix(UnixListener);
 
 impl Unix {
     #[inline]
+    #[cfg(feature = "async-std-rt")]
+    /// bind the global route on the given address
+    pub async fn bind(addrs: impl AsRef<async_std::path::Path>) -> Result<JoinHandle<Result<()>>> {
+        let listener = UnixListener::bind(addrs).await?;
+
+        Ok(runtime::spawn(async move {
+            loop {
+                let (stream, _) = listener.accept().await?;
+                runtime::spawn(async move {
+                    let chan: Channel = Channel::new_unix_encrypted(stream).await?;
+                    let chan: BareChannel = chan.bare();
+                    GLOBAL_ROUTE.introduce(chan).await?;
+                    Ok::<_, igcp::Error>(())
+                });
+            }
+        }))
+    }
+    #[inline]
+    #[cfg(feature = "tokio-rt")]
     /// bind the global route on the given address
     pub async fn bind(addrs: impl AsRef<Path>) -> Result<JoinHandle<Result<()>>> {
-        let listener = UnixListener::bind(addrs).await?;
+        let listener = UnixListener::bind(addrs)?;
+
         Ok(runtime::spawn(async move {
             loop {
                 let (stream, _) = listener.accept().await?;
@@ -52,7 +76,7 @@ impl Unix {
                         addrs,
                         attempt
                     );
-                    async_std::task::sleep(std::time::Duration::from_millis(time_to_retry)).await;
+                    crate::runtime::sleep(std::time::Duration::from_millis(time_to_retry)).await;
                     attempt += 1;
                     if attempt == retries {
                         err!((e))?
@@ -94,9 +118,23 @@ pub struct InsecureUnix(UnixListener);
 
 impl InsecureUnix {
     #[inline]
+    #[cfg(feature = "async-std-rt")]
     /// bind the global route on the given address
     pub async fn bind(addrs: impl AsRef<Path>) -> Result<JoinHandle<Result<()>>> {
         let listener = UnixListener::bind(addrs).await?;
+        Ok(runtime::spawn(async move {
+            loop {
+                let (stream, _) = listener.accept().await?;
+                let chan = BareChannel::InsecureUnix(stream);
+                GLOBAL_ROUTE.introduce(chan).await?;
+            }
+        }))
+    }
+    #[inline]
+    #[cfg(feature = "tokio-rt")]
+    /// bind the global route on the given address
+    pub async fn bind(addrs: impl AsRef<Path>) -> Result<JoinHandle<Result<()>>> {
+        let listener = UnixListener::bind(addrs)?;
         Ok(runtime::spawn(async move {
             loop {
                 let (stream, _) = listener.accept().await?;
@@ -122,7 +160,7 @@ impl InsecureUnix {
                         addrs,
                         attempt
                     );
-                    async_std::task::sleep(std::time::Duration::from_millis(time_to_retry)).await;
+                    crate::runtime::sleep(std::time::Duration::from_millis(time_to_retry)).await;
                     attempt += 1;
                     if attempt == retries {
                         err!((e))?

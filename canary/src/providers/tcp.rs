@@ -1,13 +1,13 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 use crate::discovery::Status;
+use crate::io::TcpListener;
+use crate::io::TcpStream;
+use crate::io::ToSocketAddrs;
 use crate::routes::GLOBAL_ROUTE;
 use crate::runtime;
 use crate::runtime::JoinHandle;
 use crate::Result;
-use async_std::net::TcpListener;
-use async_std::net::TcpStream;
-use async_std::net::ToSocketAddrs;
 use igcp::err;
 use igcp::BareChannel;
 use igcp::Channel;
@@ -50,7 +50,7 @@ impl Tcp {
                         addrs,
                         attempt
                     );
-                    async_std::task::sleep(std::time::Duration::from_millis(time_to_retry)).await;
+                    crate::runtime::sleep(std::time::Duration::from_millis(time_to_retry)).await;
                     attempt += 1;
                     if attempt == retries {
                         err!((e))?
@@ -120,7 +120,7 @@ impl InsecureTcp {
                         addrs,
                         attempt
                     );
-                    async_std::task::sleep(std::time::Duration::from_millis(time_to_retry)).await;
+                    crate::runtime::sleep(std::time::Duration::from_millis(time_to_retry)).await;
                     attempt += 1;
                     if attempt == retries {
                         err!((e))?

@@ -47,7 +47,19 @@ impl<T> Snow<T> {
 impl<T: ReadWrite + Unpin> Snow<T> {
     /// Starts a new snow stream using the default noise parameters
     pub async fn new(stream: T) -> Result<Self> {
-        Self::new_with_params(stream, "Noise_NN_25519_ChaChaPoly_BLAKE2s".parse().unwrap()).await
+        // let noise_params = "Noise_NN_25519_ChaChaPoly_BLAKE2s".parse().unwrap();
+        let noise_params = NoiseParams::new(
+            "".into(),
+            BaseChoice::Noise,
+            HandshakeChoice {
+                pattern: HandshakePattern::NN,
+                modifiers: HandshakeModifierList { list: vec![] },
+            },
+            DHChoice::Curve25519,
+            CipherChoice::ChaChaPoly,
+            HashChoice::Blake2s,
+        );
+        Self::new_with_params(stream, noise_params).await
     }
 
     /// starts a new snow stream using the provided parameters.

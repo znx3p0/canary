@@ -2,6 +2,7 @@ use derive_more::From;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::marker::PhantomData;
+use cfg_if::cfg_if;
 
 use crate::async_snow::Snow;
 use crate::io::{Read, Write};
@@ -23,10 +24,17 @@ pub type AnyChannel = Channel<AnyInput, Bincode>;
 /// read format that allows input with any serialization format. supports bincode, json, bson and postcard and deserializes in that order
 pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
 
-#[cfg(not(target_arch = "wasm32"))]
-pub(crate) type WSS = async_tungstenite::WebSocketStream<TcpStream>;
-#[cfg(target_arch = "wasm32")]
-pub(crate) type WSS = reqwasm::websocket::futures::WebSocket;
+cfg_if! {
+    if #[cfg(all(feature = "tokio-net", not(target_arch = "wasm32")))] {
+        pub(crate) type WSS = crate::io::WebSocketStream<
+            async_tungstenite::tokio::TokioAdapter<TcpStream>
+        >;
+    } else if #[cfg(all(feature = "async-std-net", not(target_arch = "wasm32")))] {
+        pub(crate) type WSS = crate::io::WebSocketStream<TcpStream>;
+    } else if #[cfg(target_arch = "wasm32")] {
+        pub(crate) type WSS = reqwasm::websocket::futures::WebSocket;
+    }
+}
 
 #[derive(From)]
 /// `Channel` abstracts network communications as object streams.

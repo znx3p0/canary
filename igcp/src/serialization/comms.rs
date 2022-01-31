@@ -8,7 +8,7 @@ use futures_lite::StreamExt;
 use serde::{de::DeserializeOwned, Serialize};
 
 #[cfg(not(target_arch = "wasm32"))]
-use async_tungstenite::tungstenite::Message;
+use crate::io::WSSMessage as Message;
 
 #[cfg(target_arch = "wasm32")]
 use crate::WSS;
@@ -84,9 +84,8 @@ where
 /// receive a message from a websocket stream
 pub async fn wss_rx<T, O, F: ReadFormat>(st: &mut T) -> Result<O>
 where
-    T: futures::prelude::Stream<
-            Item = std::result::Result<Message, async_tungstenite::tungstenite::Error>,
-        > + Unpin,
+    T: futures::prelude::Stream<Item = std::result::Result<Message, crate::io::TungsteniteError>>
+        + Unpin,
     O: DeserializeOwned,
 {
     let msg = st

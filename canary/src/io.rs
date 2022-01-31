@@ -1,7 +1,7 @@
 use cfg_if::cfg_if;
 
 cfg_if! {
-    if #[cfg(all(not(target_arch = "wasm32"), feature = "tokio-net"))] {
+    if #[cfg(all(not(target_arch = "wasm32"), feature = "tokio-rt"))] {
         #[cfg(unix)]
         pub use tokio::net::{UnixListener, UnixStream};
         pub use tokio::net::{TcpListener, TcpStream};
@@ -9,11 +9,12 @@ cfg_if! {
         pub use tokio::io::AsyncReadExt as ReadExt;
         pub use tokio::io::AsyncWrite as Write;
         pub use tokio::io::AsyncWriteExt as WriteExt;
+        pub use tokio::net::ToSocketAddrs;
+    }
+}
 
-        pub use async_tungstenite::WebSocketStream;
-        pub use async_tungstenite::tungstenite::Message as WSSMessage;
-        pub use async_tungstenite::tungstenite::Error as TungsteniteError;
-    } else if #[cfg(all(not(target_arch = "wasm32"), feature = "async-std-net"))] {
+cfg_if! {
+    if #[cfg(all(not(target_arch = "wasm32"), feature = "async-std-rt"))] {
         pub use async_std::io::Read;
         pub use async_std::io::ReadExt;
         pub use async_std::io::Write;
@@ -22,9 +23,8 @@ cfg_if! {
         #[cfg(unix)]
         pub use async_std::os::unix::net::{UnixListener, UnixStream};
         pub use async_std::net::{TcpListener, TcpStream};
-
-        pub use async_tungstenite::WebSocketStream;
-        pub use async_tungstenite::tungstenite::Message as WSSMessage;
-        pub use async_tungstenite::tungstenite::Error as TungsteniteError;
+        pub use async_std::net::ToSocketAddrs;
     }
 }
+
+pub use async_tungstenite as wss;
