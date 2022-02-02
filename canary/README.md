@@ -1,6 +1,5 @@
 # Canary
 
-
 Canary is a distributed systems library for making
 communications through the network easier.
 

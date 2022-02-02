@@ -9,7 +9,7 @@ use camino::Utf8Path;
 use igcp::{err, BareChannel, Channel};
 
 use crate::discovery::Status;
-use crate::service::{Service, Svc};
+use crate::service::{Service, Svc, ServiceHandle};
 use crate::Result;
 
 use dashmap::DashMap;
@@ -31,6 +31,13 @@ pub enum Route {
     /// route built dynamically
     Dynamic(Arc<InnerRoute>, RouteKey), // tree structure makes sure that arc cannot outlive inner, hence no possibility for memory leaks
 }
+
+/// global route on which initial services are laid on
+pub static GLOBAL_ROUTE: Lazy<Route> = Lazy::new(|| {
+    let route = Box::new(InnerRoute::default());
+    let route: &'static InnerRoute = Box::leak(route);
+    Route::new_static(route)
+});
 
 impl Route {
     /// create a new dynamic route from the name
@@ -88,13 +95,6 @@ pub trait Register {
     fn register<T: RouteLike>(top_route: &T, meta: Self::Meta) -> Result<()>;
 }
 
-/// global route on which initial services are laid on
-pub static GLOBAL_ROUTE: Lazy<Route> = Lazy::new(|| {
-    let route = Box::new(InnerRoute::default());
-    let route: &'static InnerRoute = Box::leak(route);
-    Route::new_static(route)
-});
-
 trait Context {
     fn context(self) -> Ctx;
 }
@@ -115,14 +115,11 @@ impl Context for (Arc<InnerRoute>, RouteKey) {
 
 /// encapsulates basic route methods
 pub trait RouteLike: Sized {
+    fn service(&self, at: &str) -> Result<ServiceHandle>;
     /// add service at the specified id
     fn add_service_at<T: Service>(&self, at: &str, meta: T::Meta) -> Result<()>;
     /// remove the service or route at the specified id
     fn remove_at(&self, at: &str) -> Result<()>;
-
-    // adds a raw service at the specified id
-    // fn add_raw_service_at(&self, at: &str, svc: impl Into<Svc>) -> Result<()>;
-
     /// switch a channel to a service at the specified id with the specified discovery.
     /// if discovery is enabled, a `Status::Found` will be sent
     fn switch_raw(
@@ -236,7 +233,11 @@ impl RouteLike for &'static InnerRoute {
                 Storable::Service(svc) => {
                     let mut ctx = ctx.unwrap_or(self.context());
                     ctx.id = at.into();
-                    svc(chan, ctx, discover);
+                    if let Err(err) = svc.try_send((chan, discover)) {
+                        let (chan, _) = err.into_inner();
+                        map.remove(segment);
+                        return Err(chan)
+                    };
                     return Ok(());
                 }
             }
@@ -255,6 +256,15 @@ impl RouteLike for &'static InnerRoute {
     #[inline]
     fn register<T: Register>(&self, meta: T::Meta) -> Result<()> {
         T::register(self, meta)
+    }
+
+    #[inline]
+    fn service(&self, at: &str) -> Result<ServiceHandle> {
+        let (tx, rx) = async_channel::unbounded();
+        match self.map.insert(at.into(), Storable::Service(tx)) {
+            Some(_) => err!((in_use, format!("service `{}` already exists", at))),
+            None => Ok(rx.into()),
+        }
     }
 }
 
@@ -308,7 +318,11 @@ impl RouteLike for Arc<InnerRoute> {
                 Storable::Service(svc) => {
                     let mut ctx = ctx.unwrap_or((self.clone(), CompactStr::new(at)).context());
                     ctx.id = at.into();
-                    svc(chan, ctx, discover);
+                    if let Err(err) = svc.try_send((chan, discover)) {
+                        let (chan, _) = err.into_inner();
+                        map.remove(segment);
+                        return Err(chan)
+                    };
                     return Ok(());
                 }
             }
@@ -326,6 +340,15 @@ impl RouteLike for Arc<InnerRoute> {
     fn register<T: Register>(&self, meta: T::Meta) -> Result<()> {
         T::register(self, meta)
     }
+
+    #[inline]
+    fn service(&self, at: &str) -> Result<ServiceHandle> {
+        let (tx, rx) = async_channel::unbounded();
+        match self.map.insert(at.into(), Storable::Service(tx)) {
+            Some(_) => err!((in_use, format!("service `{}` already exists", at))),
+            None => Ok(rx.into()),
+        }
+    }
 }
 
 impl Route {
@@ -335,6 +358,14 @@ impl Route {
         match self {
             Route::Static(ctx) => ctx.context(),
             Route::Dynamic(ctx, at) => (ctx.clone(), at.clone()).context(),
+        }
+    }
+
+    #[inline]
+    pub fn service(&self, at: &str) -> Result<ServiceHandle> {
+        match self {
+            Route::Static(ctx) => ctx.service(at),
+            Route::Dynamic(ctx, _) => ctx.service(at),
         }
     }
 

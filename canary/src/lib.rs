@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![deny(missing_docs)]
+// #![deny(missing_docs)]
 #![cfg(any(feature = "tokio-rt", feature = "async-std-rt"))]
 
 //! # Canary

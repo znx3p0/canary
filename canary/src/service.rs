@@ -4,37 +4,34 @@ use crate::discovery::Status;
 use crate::routes::Ctx;
 use crate::runtime::JoinHandle;
 use crate::Result;
-use igcp::{BareChannel, Channel};
+use async_channel::{Sender, Receiver};
+use derive_more::From;
+use igcp::{BareChannel, Channel, err};
 use std::future::Future;
 
-use crate::runtime::spawn;
+type ServiceMessage = (BareChannel, bool);
+
 /// underlying service handle that is stored on a route
-pub type Svc =
-    Box<dyn Fn(BareChannel, Ctx, bool) -> JoinHandle<Result<()>> + Send + Sync + 'static>;
-/// function used to create services from closures and functions
-pub fn run_metadata<M, T, X, C>(meta: M, svc: X) -> Svc
-where
-    T: Future<Output = crate::Result<()>> + Send + 'static,
-    C: From<BareChannel> + Send,
-    X: Fn(M, C, Ctx) -> T,
-    X: Send + Sync + 'static + Clone,
-    M: Send + Clone + Sync + 'static,
-{
-    Box::new(move |chan, ctx, discover| {
-        let meta = meta.clone();
-        let svc = svc.clone();
-        spawn(async move {
-            let mut chan: Channel = chan.into();
-            if discover {
-                chan.send(Status::Found).await?;
-            }
-            let chan = C::from(chan.bare());
-            let svc = svc(meta, chan, ctx);
-            svc.await?;
-            Ok(())
-        })
-    })
+pub type Svc = Sender<ServiceMessage>;
+
+#[derive(From)]
+pub struct ServiceHandle {
+    chan: Receiver<ServiceMessage>,
 }
+
+impl ServiceHandle {
+    pub async fn next(&mut self) -> Result<Channel> {
+        let (channel, discover) = self.chan.recv().await
+            .map_err(|e| err!(e))?;
+        if discover {
+            let mut channel: Channel = channel.into();
+            channel.send(Status::Found).await?;
+            return Ok(channel)
+        }
+        Ok(channel.into())
+    }
+}
+
 /// Services are backed by this trait.
 /// Services fundamentally only have metadata,
 /// but this trait also offers extra data such as

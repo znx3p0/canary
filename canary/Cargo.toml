@@ -26,6 +26,7 @@ async-std = { version = "1", features = [ "unstable" ], optional = true } # stab
 tokio = { version = "1", features = [ "rt-multi-thread", "macros", "time" ], optional = true } # stable api
 tracing = "0.1" # stable api
 ahash = "0.7" # faster hashing for routes
+async-channel = "1.6"
 
 # ergonomics
 canary-macro = { path = "../canary-macro", version = "0.1.3" }
