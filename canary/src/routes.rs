@@ -9,7 +9,7 @@ use camino::Utf8Path;
 use igcp::{err, BareChannel, Channel};
 
 use crate::discovery::Status;
-use crate::service::{Service, Svc, ServiceHandle};
+use crate::service::{Svc, ServiceHandle};
 use crate::Result;
 
 use dashmap::DashMap;
@@ -116,8 +116,6 @@ impl Context for (Arc<InnerRoute>, RouteKey) {
 /// encapsulates basic route methods
 pub trait RouteLike: Sized {
     fn service(&self, at: &str) -> Result<ServiceHandle>;
-    /// add service at the specified id
-    fn add_service_at<T: Service>(&self, at: &str, meta: T::Meta) -> Result<()>;
     /// remove the service or route at the specified id
     fn remove_at(&self, at: &str) -> Result<()>;
     /// switch a channel to a service at the specified id with the specified discovery.
@@ -154,47 +152,9 @@ pub trait RouteLike: Sized {
     fn switch(&self, at: &str, chan: BareChannel) -> std::result::Result<(), BareChannel> {
         self.switch_raw(at, chan, false)
     }
-
-    #[inline]
-    /// remove service from the route
-    fn remove_service<T: Service>(self) -> Result<()> {
-        self.remove_at(T::ENDPOINT)
-    }
-    #[inline]
-    /// add service to the route with the given metadata
-    fn add_service<T: Service>(&self, meta: T::Meta) -> Result<()> {
-        self.add_service_at::<T>(T::ENDPOINT, meta)
-    }
-    #[inline]
-    /// add service to the route with default metadata
-    fn add_service_default<T: Service>(&self) -> Result<()>
-    where
-        T::Meta: Default,
-    {
-        self.add_service::<T>(Default::default())
-    }
-    #[inline]
-    /// add service to the route with default metadata
-    fn add_service_default_at<T: Service>(&self, at: &str) -> Result<()>
-    where
-        T::Meta: Default,
-    {
-        self.add_service_at::<T>(at, Default::default())
-    }
 }
 
 impl RouteLike for &'static InnerRoute {
-    #[inline]
-    fn add_service_at<T: Service>(&self, at: &str, meta: T::Meta) -> Result<()> {
-        match self
-            .map
-            .insert(at.into(), Storable::Service(T::service(meta)))
-        {
-            Some(_) => err!((in_use, format!("service `{}` already exists", at))),
-            None => Ok(()),
-        }
-    }
-
     #[inline]
     fn remove_at(&self, at: &str) -> Result<()> {
         match self.map.remove(at) {
@@ -269,17 +229,6 @@ impl RouteLike for &'static InnerRoute {
 }
 
 impl RouteLike for Arc<InnerRoute> {
-    #[inline]
-    fn add_service_at<T: Service>(&self, at: &str, meta: T::Meta) -> Result<()> {
-        match self
-            .map
-            .insert(at.into(), Storable::Service(T::service(meta)))
-        {
-            Some(_) => err!((in_use, format!("service `{}` already exists", at))),
-            None => Ok(()),
-        }
-    }
-
     #[inline]
     fn remove_at(&self, at: &str) -> Result<()> {
         match self.map.remove(at) {
@@ -369,18 +318,6 @@ impl Route {
         }
     }
 
-    #[inline]
-    /// add service to the route with default metadata
-    pub fn add_service_default_at<T: Service>(&self, at: &str) -> Result<()>
-    where
-        T::Meta: Default,
-    {
-        match self {
-            Route::Static(ctx) => ctx.add_service_at::<T>(at, Default::default()),
-            Route::Dynamic(ctx, _) => ctx.add_service_at::<T>(at, Default::default()),
-        }
-    }
-
     /// call the register implementation of a type on the route
     pub fn register<T: Register>(&self, meta: T::Meta) -> Result<()> {
         match self {
@@ -397,33 +334,6 @@ impl Route {
         match self {
             Route::Static(ctx) => ctx.register_default::<T>(),
             Route::Dynamic(ctx, _) => ctx.register_default::<T>(),
-        }
-    }
-
-    /// add service to the route with the given metadata
-    pub fn add_service<T: Service>(&self, meta: T::Meta) -> Result<()> {
-        match self {
-            Route::Static(ctx) => ctx.add_service::<T>(meta),
-            Route::Dynamic(ctx, _) => ctx.add_service::<T>(meta),
-        }
-    }
-
-    /// add service at the specified id
-    pub fn add_service_at<T: Service>(&self, at: &str, meta: T::Meta) -> Result<()> {
-        match self {
-            Route::Static(ctx) => ctx.add_service_at::<T>(at, meta),
-            Route::Dynamic(ctx, _) => ctx.add_service_at::<T>(at, meta),
-        }
-    }
-
-    /// add service to the route with default metadata
-    pub fn add_service_default<T: Service>(&self) -> Result<()>
-    where
-        T::Meta: Default,
-    {
-        match self {
-            Route::Static(ctx) => ctx.add_service_default::<T>(),
-            Route::Dynamic(ctx, _) => ctx.add_service_default::<T>(),
         }
     }
 
