@@ -16,6 +16,12 @@ implementations will be made to improve efficiency and wire cost.
 
 [Book](https://znx3p0.github.io/canary-book/)
 
+Notable features of Canary:
+- Seamless encryption
+- Wasm support
+- Atomic (cannot be divided into simpler constructs)
+- Zero-cost (eventually, nightly features required)
+
 ## Contribute
 If you'd like to contribute to the project, please tell us at the
 [discord](https://discord.gg/CGNh7fE2DP), in which we'll teach
