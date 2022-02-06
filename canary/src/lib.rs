@@ -1,55 +1,26 @@
 #![forbid(unsafe_code)]
-// #![deny(missing_docs)]
-#![cfg(any(feature = "tokio-rt", feature = "async-std-rt"))]
+// #![forbid(missing_docs)]
 
-//! # Canary
-//! Canary is a library for making communication through the network easy.
-//! It abstracts over network primitives such as streams and provides
-//! constructs that are easier to use such as `Channel`.
+//! IGCP | intergalactic communications protocol
 //!
-//! The main constructs offered by Canary are:
-//! - Channels
-//! - Services
-//! - Providers
-//!
-//! Channels help communicate through the network,
-//! services help offer multiple endpoints of communication
-//! and providers help expose services through the network.
-//!
-//! The crate is well-documented, but if you need any examples
-//! you should use [the book](https://znx3p0.github.io/canary-book/),
-//! and any questions should be asked in [the discord](https://discord.gg/QaWxMzAZs8)
+//! IGCP is designed to abstract over streams or low-level communication protocols.
+//! IGCP should be as high-level as possible while keeping configurability and zero-cost to the wire.
+//! The main abstraction IGCP offers are channels, which represent a stream of objects
+//! that can be sent or received.
+//! At the moment, IGCP channels are not completely zero-cost.
 
-cfg_if::cfg_if! {
-    if #[cfg(all(feature = "tokio-rt", feature = "async-std-rt"))] {
-        compile_error!("only one of 'async-std-rt' or 'tokio-rt' features must be enabled; maybe you should try adding `default-features = false`?");
-    } else if #[cfg(not(any(feature = "tokio-rt", feature = "async-std-rt")))] {
-        compile_error!("one of 'async-std-rt' or 'tokio-rt' features must be enabled");
-    } else {
-        /// contains discovery structures
-        pub mod discovery;
-        /// offers the main types needed to use canary
-        pub mod prelude;
-        /// offers providers, which expose services through the network
-        pub mod providers;
-        /// offers the routing system used by services
-        pub mod routes;
-        /// offers the runtime used by Canary to run the services, `async-std` by default
-        pub mod runtime;
-        /// offers services and helper traits
-        pub mod service;
-        mod io;
+/// contains encrypted stream
+mod async_snow;
+pub mod channel;
+/// contains custom error types and result
+pub mod err;
+mod io;
+pub mod providers;
+/// contains the serialization methods for channels
+/// and formats
+pub mod serialization;
+pub mod type_iter;
 
-        pub use canary_macro::*;
-        pub use igcp;
-        pub use igcp::{err, pipe, pipeline, Channel};
-        pub use serde::{Deserialize, Serialize};
-
-        pub use igcp::Result;
-        pub use providers::Addr;
-        pub use providers::ServiceAddr;
-
-        #[cfg(not(target_arch = "wasm32"))]
-        pub use routes::Ctx;
-    }
-}
+pub use channel::Channel;
+pub use err::Error;
+pub use err::Result;

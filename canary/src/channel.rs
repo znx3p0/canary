@@ -1,8 +1,8 @@
+use cfg_if::cfg_if;
 use derive_more::From;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::marker::PhantomData;
-use cfg_if::cfg_if;
 
 use crate::async_snow::Snow;
 use crate::io::{Read, Write};
@@ -26,7 +26,7 @@ pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
 
 cfg_if! {
     if #[cfg(all(feature = "tokio-net", not(target_arch = "wasm32")))] {
-        pub(crate) type WSS = crate::io::WebSocketStream<
+        pub(crate) type WSS = crate::io::wss::WebSocketStream<
             async_tungstenite::tokio::TokioAdapter<TcpStream>
         >;
     } else if #[cfg(all(feature = "async-std-net", not(target_arch = "wasm32")))] {
@@ -298,11 +298,14 @@ pub struct Handshake(Channel);
 impl Handshake {
     pub async fn encrypted(self) -> Result<Channel> {
         match self.0 {
+            #[cfg(not(target_arch = "wasm32"))]
             Channel::InsecureTcp(tcp) => Channel::new_tcp_encrypted(tcp).await,
             Channel::InsecureAny(any) => Channel::new_any_encrypted(any).await,
+            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(unix)]
             Channel::InsecureUnix(unix) => Channel::new_unix_encrypted(unix).await,
             Channel::InsecureWSS(wss) => Channel::new_wss_encrypted(wss).await,
-            encrypted => Ok(encrypted) // double encryption is not supported
+            encrypted => Ok(encrypted), // double encryption is not supported
         }
     }
     #[inline]

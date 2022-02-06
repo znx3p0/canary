@@ -1,25 +1,23 @@
-#![cfg(unix)]
 #![cfg(not(target_arch = "wasm32"))]
 
-use std::path::Path;
-
-use crate::channel::Handshake;
-use crate::err;
-use crate::io::UnixListener;
-use crate::io::UnixStream;
-use crate::Channel;
+use crate::io::TcpListener;
+use crate::io::TcpStream;
+use crate::io::ToSocketAddrs;
 use crate::Result;
+use igcp::Handshake;
+use igcp::err;
+use igcp::Channel;
 
 /// Exposes routes over TCP
-pub struct Unix(UnixListener);
+pub struct Tcp(TcpListener);
 
-impl Unix {
+impl Tcp {
     #[inline]
     /// bind the global route on the given address
-    pub async fn bind(addrs: impl AsRef<Path>) -> Result<Self> {
-        let listener = UnixListener::bind(addrs)?;
-        // let listener = UnixListener::bind(addrs).await?;
-        Ok(Unix(listener))
+    pub async fn bind(addrs: impl ToSocketAddrs) -> Result<Self> {
+        let listener = TcpListener::bind(addrs).await?;
+        Ok(Tcp(listener))
+
     }
     #[inline]
     pub async fn next(&self) -> Result<Handshake> {
@@ -30,13 +28,13 @@ impl Unix {
     #[inline]
     /// connect to the following address without discovery
     pub async fn raw_connect_with_retries(
-        addrs: impl AsRef<Path> + std::fmt::Debug,
+        addrs: impl ToSocketAddrs + std::fmt::Debug,
         retries: u32,
         time_to_retry: u64,
     ) -> Result<Handshake> {
         let mut attempt = 0;
         let stream = loop {
-            match UnixStream::connect(&addrs).await {
+            match TcpStream::connect(&addrs).await {
                 Ok(s) => break s,
                 Err(e) => {
                     tracing::error!(
@@ -44,7 +42,7 @@ impl Unix {
                         addrs,
                         attempt
                     );
-                    crate::io::sleep(std::time::Duration::from_millis(time_to_retry)).await;
+                    crate::runtime::sleep(std::time::Duration::from_millis(time_to_retry)).await;
                     attempt += 1;
                     if attempt == retries {
                         err!((e))?
@@ -58,13 +56,13 @@ impl Unix {
     }
     #[inline]
     /// connect to the following address with the following id. Defaults to 3 retries.
-    pub async fn connect(addrs: impl AsRef<Path> + std::fmt::Debug) -> Result<Handshake> {
+    pub async fn connect(addrs: impl ToSocketAddrs + std::fmt::Debug) -> Result<Handshake> {
         Self::connect_retry(addrs, 3, 10).await
     }
     #[inline]
     /// connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(
-        addrs: impl AsRef<Path> + std::fmt::Debug,
+        addrs: impl ToSocketAddrs + std::fmt::Debug,
         retries: u32,
         time_to_retry: u64,
     ) -> Result<Handshake> {

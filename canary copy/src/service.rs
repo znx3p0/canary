@@ -2,7 +2,7 @@
 
 use crate::discovery::Status;
 use crate::Result;
-use async_channel::{Sender, Receiver};
+use flume::{Sender, Receiver};
 use derive_more::From;
 use igcp::{BareChannel, Channel, err};
 
@@ -18,7 +18,7 @@ pub struct ServiceHandle {
 
 impl ServiceHandle {
     pub async fn next(&mut self) -> Result<Channel> {
-        let (channel, discover) = self.chan.recv().await
+        let (channel, discover) = self.chan.recv_async().await
             .map_err(|e| err!(e))?;
         if discover {
             let mut channel: Channel = channel.into();

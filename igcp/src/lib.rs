@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![forbid(missing_docs)]
+// #![forbid(missing_docs)]
 
 //! IGCP | intergalactic communications protocol
 //!

@@ -26,7 +26,7 @@ bson = { version = "2.0.1" }
 postcard = { version = "0.7.2", features = [ "alloc" ] }
 
 # encryption
-snow = "0.8.0" # api may change
+snow = "0.9.0" # api may change
 rand = "0.8"
 
 cfg-if = "1"
