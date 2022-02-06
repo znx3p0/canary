@@ -3,13 +3,16 @@
 Canary is a distributed systems library for making
 communications through the network easier.
 
-NOTE ABOUT STABILITY:
 
-Canary is based upon the principle of atomicity,
-and some of the current structures canary offers are not atomic;
-what this means in simple terms is that they can be built on top
-of other abstractions, hence, breaking the principle of atomicity.
-This means that you should expect a different API on 0.2.
+<p align="center">
+    <img src = "https://i.imgur.com/LIj5jXn.png" alt = "Canary Logo" width = "25%" height = "auto" center />
+</p>
+
+Canary is a distributed systems and communications framework, focusing on minimalism, ease of use and performance.
+
+Please make sure that you use Serialize and Deserialize from Canary, since custom
+implementations will be made to improve efficiency and wire cost.
+
 
 [Book](https://znx3p0.github.io/canary-book/)
 
