@@ -46,6 +46,7 @@ impl<T> Snow<T> {
 
 impl<T: ReadWrite + Unpin> Snow<T> {
     /// Starts a new snow stream using the default noise parameters
+    #[inline]
     pub async fn new(stream: T) -> Result<Self> {
         // let noise_params = "Noise_NN_25519_ChaChaPoly_BLAKE2s".parse().unwrap();
         let noise_params = NoiseParams::new(
@@ -63,6 +64,7 @@ impl<T: ReadWrite + Unpin> Snow<T> {
     }
 
     /// starts a new snow stream using the provided parameters.
+    #[inline]
     pub async fn new_with_params(mut stream: T, noise_params: NoiseParams) -> Result<Self> {
         // To initialize the encrypted stream, we need to decide which stream
         // is the initiator and which is the responder.
@@ -146,6 +148,7 @@ impl<T: ReadWrite + Unpin> Snow<T> {
     ///     Ok(())
     /// }
     /// ```
+    #[inline]
     pub async fn rx<O: DeserializeOwned, F: ReadFormat>(&mut self) -> Result<O> {
         let size = zc::read_u64(&mut self.stream).await?;
         // receive message
@@ -172,6 +175,7 @@ impl<T: ReadWrite + Unpin> Snow<T> {
     ///     Ok(())
     /// }
     /// ```
+    #[inline]
     pub async fn tx<O: Serialize, F: SendFormat>(&mut self, obj: O) -> Result<usize> {
         // serialize or return invalid data error
         let vec = F::serialize(&obj)?;
@@ -186,12 +190,14 @@ impl<T: ReadWrite + Unpin> Snow<T> {
 }
 
 impl Snow<WSS> {
+    #[inline]
     /// Starts a new snow stream using the default noise parameters
     pub async fn new_wss(stream: WSS) -> Result<Self> {
         Self::new_with_params_wss(stream, "Noise_NN_25519_ChaChaPoly_BLAKE2s".parse().unwrap())
             .await
     }
 
+    #[inline]
     /// starts a new snow stream using the provided parameters.
     pub async fn new_with_params_wss(mut stream: WSS, noise_params: NoiseParams) -> Result<Self> {
         // To initialize the encrypted stream, we need to decide which stream
@@ -271,6 +277,7 @@ impl Snow<WSS> {
         }
     }
 
+    #[inline]
     /// receive message from stream
     /// ```norun
     /// async fn service(mut peer: Snow<TcpStream>) -> Result<()> {
@@ -294,6 +301,7 @@ impl Snow<WSS> {
         F::deserialize(&msg)
     }
 
+    #[inline]
     /// send message to stream
     /// ```norun
     /// async fn service(mut peer: Snow<TcpStream>) -> Result<()> {
