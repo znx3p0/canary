@@ -294,8 +294,16 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
 }
 
 #[derive(From)]
+/// a channel handshake that determines if the channel will have encryption
 pub struct Handshake(Channel);
 impl Handshake {
+    /// encrypt the channel
+    /// ```norun
+    /// while let Ok(chan) = provider.next().await {
+    ///     let mut chan = chan.encrypted().await?;
+    ///     chan.send("hello!").await?;
+    /// }
+    /// ```
     pub async fn encrypted(self) -> Result<Channel> {
         match self.0 {
             #[cfg(not(target_arch = "wasm32"))]
@@ -309,6 +317,13 @@ impl Handshake {
         }
     }
     #[inline]
+    /// get an unencrypted channel
+    /// ```norun
+    /// while let Ok(chan) = provider.next().await {
+    ///     let mut chan = chan.raw();
+    ///     chan.send("hello!").await?;
+    /// }
+    /// ```
     pub fn raw(self) -> Channel {
         self.0
     }

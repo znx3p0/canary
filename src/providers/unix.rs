@@ -22,6 +22,13 @@ impl Unix {
         Ok(Unix(listener))
     }
     #[inline]
+    /// get the next channel
+    /// ```norun
+    /// while let Ok(chan) = unix.next().await {
+    ///     let mut chan = chan.encrypted().await?;
+    ///     chan.send("hello!").await?;
+    /// }
+    /// ```
     pub async fn next(&self) -> Result<Handshake> {
         let (chan, _) = self.0.accept().await?;
         let chan: Channel = Channel::from(chan);

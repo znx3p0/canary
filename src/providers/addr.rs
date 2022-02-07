@@ -117,39 +117,6 @@ impl Addr {
     pub fn new(addr: &str) -> Result<Self> {
         addr.parse()
     }
-    // #[inline]
-    // #[cfg(not(target_arch = "wasm32"))]
-    // /// bind the address to the global route
-    // pub async fn bind(&self) -> Result<JoinHandle<Result<()>>> {
-    //     cfg_if! {
-    //         if #[cfg(unix)] {
-    //             match self {
-    //                 Addr::Tcp(addrs) => Tcp::bind(addrs.as_ref()).await,
-    //                 Addr::InsecureTcp(addrs) => InsecureTcp::bind(addrs.as_ref()).await,
-    //                 Addr::Unix(addrs) => Unix::bind(addrs.as_ref()).await,
-    //                 Addr::InsecureUnix(addrs) => InsecureUnix::bind(addrs.as_ref()).await,
-    //                 Addr::Wss(addrs) => Wss::bind(addrs.as_str()).await,
-    //                 Addr::InsecureWss(addrs) => InsecureWss::bind(addrs.as_str()).await,
-    //             }
-    //         } else {
-    //             match self {
-    //                 Addr::Tcp(addrs) => Tcp::bind(addrs.as_ref()).await,
-    //                 Addr::InsecureTcp(addrs) => InsecureTcp::bind(addrs.as_ref()).await,
-    //                 Addr::Wss(addrs) => Wss::bind(addrs.as_str()).await,
-    //                 Addr::InsecureWss(addrs) => InsecureWss::bind(addrs.as_str()).await,
-    //                 Addr::Unix(_) => err!((
-    //                     unsupported,
-    //                     "binding an unix provider is not supported on non-unix platforms"
-    //                 )),
-    //                 Addr::InsecureUnix(_) => err!((
-    //                     unsupported,
-    //                     "binding an unix provider is not supported on non-unix platforms"
-    //                 )),
-    //             }
-    //         }
-    //     }
-    // }
-
     #[inline]
     /// connect to the address
     pub async fn connect(&self) -> Result<Channel> {

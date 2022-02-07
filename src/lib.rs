@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
-// #![forbid(missing_docs)]
-
+#![forbid(missing_docs)]
+#![cfg_attr(feature = "nightly", feature(generic_associated_types))]
+#![cfg_attr(feature = "nightly", feature(type_alias_impl_trait))]
 
 //! # Canary
 //! Canary is a library for making communication through the network easy.
@@ -20,10 +21,12 @@
 
 /// contains encrypted stream
 mod async_snow;
+/// contains channels and constructs associated with them
 pub mod channel;
 /// contains custom error types and result
 pub mod err;
 mod io;
+/// contains providers and address
 pub mod providers;
 /// contains the serialization methods for channels
 /// and formats

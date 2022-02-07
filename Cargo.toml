@@ -33,8 +33,9 @@ tracing = "0.1.30"
 cfg-if = "1"
 compact_str = { version = "0.2.0", features = [ "serde" ] }
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+async_t = { version = "0.6.0", optional = true }
 
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # network runtimes
 async-std = { version = "1", optional = true }
 tokio = { version = "1", features = [ "net", "io-util", "time" ], optional = true }
@@ -47,12 +48,9 @@ reqwasm = { version = "0.4.0" }
 getrandom = { version = "~0.2.4", features = [ "js" ] }
 uuid = { version = "~0.8.2", features = [ "wasm-bindgen" ] }
 async-timer = "0.7.4"
-# reqwasm = { version = "0.4.0", optional = true }
-# getrandom = { version = "~0.2.3", features = ["js"], optional = true }
-# uuid = { version = "~0.8.2", features = ["wasm-bindgen"], optional =  true }
 
 [features]
 async-std-net = [ "async-std", "async-tungstenite/async-std-runtime" ]
 tokio-net = [ "tokio", "async-tungstenite/tokio-runtime" ]
-# wasm = [ "reqwasm", "getrandom", "uuid" ]
-default = [ "tokio-net" ]
+nightly = [ "async_t" ] # use nightly features for extra goodies
+default = [ "tokio-net", "nightly" ]
