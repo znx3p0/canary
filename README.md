@@ -26,3 +26,6 @@ Notable features of Canary:
 If you'd like to contribute to the project, please tell us at the
 [discord](https://discord.gg/CGNh7fE2DP), in which we'll teach
 you about how the code is organized, and how you can contribute.
+
+## Projects that use Canary
+Does your project use Canary? Don't be afraid to list it here!
