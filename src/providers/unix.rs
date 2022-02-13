@@ -10,6 +10,9 @@ use crate::io::UnixStream;
 use crate::Channel;
 use crate::Result;
 
+use derive_more::{From, Into};
+#[derive(From, Into)]
+#[into(owned, ref, ref_mut)]
 /// Exposes routes over TCP
 pub struct Unix(UnixListener);
 

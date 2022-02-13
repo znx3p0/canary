@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use crate::io::{Read, ReadExt, Write, WriteExt};
 use crate::{err, Result};
 
@@ -9,9 +7,6 @@ use serde::{de::DeserializeOwned, Serialize};
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::io::wss::tungstenite::Message;
-
-#[cfg(target_arch = "wasm32")]
-use crate::channel::WSS;
 
 #[cfg(target_arch = "wasm32")]
 use reqwasm::websocket::Message;

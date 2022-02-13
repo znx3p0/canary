@@ -8,18 +8,22 @@ use crate::io::ToSocketAddrs;
 use crate::Channel;
 use crate::Result;
 
+use derive_more::{From, Into};
+
+#[derive(From, Into)]
+#[into(owned, ref, ref_mut)]
 /// Exposes routes over TCP
 pub struct Tcp(TcpListener);
 
 impl Tcp {
     #[inline]
-    /// bind the global route on the given address
+    /// Bind the global route on the given address
     pub async fn bind(addrs: impl ToSocketAddrs) -> Result<Self> {
         let listener = TcpListener::bind(addrs).await?;
         Ok(Tcp(listener))
     }
     #[inline]
-    /// get the next channel
+    /// Get the next channel
     /// ```norun
     /// while let Ok(chan) = tcp.next().await {
     ///     let mut chan = chan.encrypted().await?;
@@ -32,7 +36,7 @@ impl Tcp {
         Ok(Handshake::from(chan))
     }
     #[inline]
-    /// connect to the following address without discovery
+    /// Connect to the following address without discovery
     pub async fn raw_connect_with_retries(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
         retries: u32,
@@ -61,12 +65,12 @@ impl Tcp {
         Ok(Handshake::from(chan))
     }
     #[inline]
-    /// connect to the following address with the following id. Defaults to 3 retries.
+    /// Connect to the following address with the following id. Defaults to 3 retries.
     pub async fn connect(addrs: impl ToSocketAddrs + std::fmt::Debug) -> Result<Handshake> {
         Self::connect_retry(addrs, 3, 10).await
     }
     #[inline]
-    /// connect to the following address with the given id and retry in case of failure
+    /// Connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
         retries: u32,

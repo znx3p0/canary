@@ -32,6 +32,7 @@ pub trait ReadFormat {
 pub trait Format: SendFormat + ReadFormat {}
 
 impl SendFormat for Bincode {
+    #[inline]
     fn serialize<O: Serialize>(obj: &O) -> crate::Result<Vec<u8>> {
         let obj = bincode::DefaultOptions::new()
             .allow_trailing_bytes()
@@ -41,6 +42,7 @@ impl SendFormat for Bincode {
     }
 }
 impl ReadFormat for Bincode {
+    #[inline]
     fn deserialize<'a, T>(bytes: &'a [u8]) -> crate::Result<T>
     where
         T: serde::de::Deserialize<'a>,
@@ -53,11 +55,13 @@ impl ReadFormat for Bincode {
 }
 
 impl SendFormat for Json {
+    #[inline]
     fn serialize<O: Serialize>(obj: &O) -> crate::Result<Vec<u8>> {
         serde_json::to_vec(obj).or_else(|e| err!((invalid_data, e)))
     }
 }
 impl ReadFormat for Json {
+    #[inline]
     fn deserialize<'a, T>(bytes: &'a [u8]) -> crate::Result<T>
     where
         T: serde::de::Deserialize<'a>,
@@ -66,11 +70,13 @@ impl ReadFormat for Json {
     }
 }
 impl SendFormat for Bson {
+    #[inline]
     fn serialize<O: Serialize>(obj: &O) -> crate::Result<Vec<u8>> {
         bson::ser::to_vec(obj).or_else(|e| err!((invalid_data, e)))
     }
 }
 impl ReadFormat for Bson {
+    #[inline]
     fn deserialize<'a, T>(bytes: &'a [u8]) -> crate::Result<T>
     where
         T: serde::de::Deserialize<'a>,
@@ -79,11 +85,13 @@ impl ReadFormat for Bson {
     }
 }
 impl SendFormat for Postcard {
+    #[inline]
     fn serialize<O: Serialize>(obj: &O) -> crate::Result<Vec<u8>> {
         postcard::to_allocvec(obj).or_else(|e| err!((invalid_data, e)))
     }
 }
 impl ReadFormat for Postcard {
+    #[inline]
     fn deserialize<'a, T>(bytes: &'a [u8]) -> crate::Result<T>
     where
         T: serde::de::Deserialize<'a>,
@@ -98,6 +106,7 @@ impl ReadFormat for Postcard {
 /// ```
 pub struct Any<T, X>(PhantomData<(T, X)>);
 impl<T: SendFormat, X: SendFormat> SendFormat for Any<T, X> {
+    #[inline]
     fn serialize<O: Serialize>(obj: &O) -> crate::Result<Vec<u8>> {
         match T::serialize(obj) {
             Ok(obj) => Ok(obj),
@@ -106,6 +115,7 @@ impl<T: SendFormat, X: SendFormat> SendFormat for Any<T, X> {
     }
 }
 impl<F: ReadFormat, X: ReadFormat> ReadFormat for Any<F, X> {
+    #[inline]
     fn deserialize<'a, T>(bytes: &'a [u8]) -> crate::Result<T>
     where
         T: serde::de::Deserialize<'a>,

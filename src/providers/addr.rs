@@ -2,12 +2,14 @@ use crate::{err, Error};
 use crate::{Channel, Result};
 use cfg_if::cfg_if;
 use compact_str::CompactStr;
+use serde::ser::SerializeSeq;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::fmt::Display;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::{fmt::Display, net::SocketAddr};
 
 use crate::providers::Wss;
 
@@ -33,59 +35,57 @@ cfg_if! {
 /// insecure_unix.bind().await?;
 /// ```
 pub enum Addr {
-    /// tcp provider
+    /// Tcp provider
     Tcp(Arc<SocketAddr>),
-    /// unix provider
+    /// Unix provider
     Unix(Arc<PathBuf>),
-    /// unencrypted tcp provider
+    /// Unencrypted tcp provider
     InsecureTcp(Arc<SocketAddr>),
-    /// unencrypted unix provider
+    /// Unencrypted unix provider
     InsecureUnix(Arc<PathBuf>),
-    /// websocket provider
+    /// Websocket provider
     Wss(Arc<CompactStr>),
-    /// unencrypted websocket provider
+    /// Unencrypted websocket provider
     InsecureWss(Arc<CompactStr>),
 }
 
 impl Into<String> for &Addr {
     #[inline]
     fn into(self) -> String {
-        match self {
-            Addr::Tcp(addr) => {
-                format!("tcp@{}", addr)
-            }
-            Addr::Unix(addr) => {
-                format!("unix@{}", addr.to_string_lossy())
-            }
-            Addr::InsecureTcp(addr) => {
-                format!("itcp@{}", addr)
-            }
-            Addr::InsecureUnix(addr) => {
-                format!("iunix@{}", addr.to_string_lossy())
-            }
-            Addr::Wss(addr) => {
-                format!("wss@{}", addr)
-            }
-            Addr::InsecureWss(addr) => {
-                format!("ws@{}", addr)
-            }
-        }
+        format!("{}", self)
     }
 }
 
 impl Display for Addr {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let string: String = self.into();
-        f.write_str(&string)
+        match self {
+            Addr::Tcp(addr) => {
+                write!(f, "tcp@{}", addr)
+            }
+            Addr::Unix(addr) => {
+                write!(f, "unix@{}", addr.to_string_lossy())
+            }
+            Addr::InsecureTcp(addr) => {
+                write!(f, "itcp@{}", addr)
+            }
+            Addr::InsecureUnix(addr) => {
+                write!(f, "iunix@{}", addr.to_string_lossy())
+            }
+            Addr::Wss(addr) => {
+                write!(f, "wss@{}", addr)
+            }
+            Addr::InsecureWss(addr) => {
+                write!(f, "ws@{}", addr)
+            }
+        }
     }
 }
 
 impl Debug for Addr {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let string: String = self.into();
-        f.write_str(&string)
+        Display::fmt(&self, f)
     }
 }
 
@@ -95,8 +95,48 @@ impl Serialize for Addr {
     where
         S: serde::Serializer,
     {
-        let string: String = self.into();
-        serializer.serialize_str(&string)
+        // this is done to avoid the unnecessary string allocation
+
+        // let string: String = self.into();
+        // serializer.serialize_str(&string)
+        match self {
+            Addr::Tcp(addr) => {
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element("tcp@")?;
+                seq.serialize_element(&addr.to_string())?;
+                seq.end()
+            }
+            Addr::Unix(addr) => {
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element("unix@")?;
+                seq.serialize_element(&addr.to_string_lossy())?;
+                seq.end()
+            }
+            Addr::InsecureTcp(addr) => {
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element("itcp@")?;
+                seq.serialize_element(&addr.to_string())?;
+                seq.end()
+            }
+            Addr::InsecureUnix(addr) => {
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element("iunix@")?;
+                seq.serialize_element(&addr.to_string_lossy())?;
+                seq.end()
+            }
+            Addr::Wss(addr) => {
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element("wss@")?;
+                seq.serialize_element(addr.as_str())?;
+                seq.end()
+            }
+            Addr::InsecureWss(addr) => {
+                let mut seq = serializer.serialize_seq(Some(2))?;
+                seq.serialize_element("ws@")?;
+                seq.serialize_element(addr.as_str())?;
+                seq.end()
+            }
+        }
     }
 }
 
@@ -125,19 +165,11 @@ impl Addr {
                 match self {
                     Addr::Wss(addrs) => Wss::connect(addrs.as_str()).await?.encrypted().await,
                     Addr::InsecureWss(addrs) => Ok(Wss::connect(addrs.as_str()).await?.raw()),
-                    Addr::Tcp(_) => err!((
+                    Addr::Tcp(_) | Addr::InsecureTcp(_) => err!((
                         unsupported,
                         "connecting to tcp providers is not supported on wasm"
                     )),
-                    Addr::InsecureTcp(_) => err!((
-                        unsupported,
-                        "connecting to tcp providers is not supported on wasm"
-                    )),
-                    Addr::InsecureUnix(_) => err!((
-                        unsupported,
-                        "connecting to unix providers is not supported on wasm"
-                    )),
-                    Addr::Unix(_) => err!((
+                    Addr::Unix(_) | Addr::InsecureUnix(_) => err!((
                         unsupported,
                         "connecting to unix providers is not supported on wasm"
                     )),
@@ -158,14 +190,10 @@ impl Addr {
                     Addr::Wss(addrs) => Wss::connect(addrs.as_str()).await?.encrypted().await,
                     Addr::InsecureWss(addrs) => Ok(Wss::connect(addrs.as_str()).await?.raw()),
 
-                    Addr::Unix(addrs) => err!((
+                    Addr::Unix(_) | Addr::InsecureUnix(_) => err!((
                         unsupported,
                         "connecting to unix providers is not supported on non-unix platforms"
                     )),
-                    Addr::InsecureUnix(addrs) => err!((
-                        unsupported,
-                        "connecting to unix providers is not supported on non-unix platforms"
-                    )),,
                 }
             }
         }
@@ -180,8 +208,8 @@ impl FromStr for Addr {
     /// tcp@127.0.0.1:8092
     /// tcp@127.0.0.1:8092
     /// unix@folder/address.sock
-    fn from_str(s: &str) -> Result<Self> {
-        let (protocol, addr) = s
+    fn from_str(addr: &str) -> Result<Self> {
+        let (protocol, addr) = addr
             .rsplit_once("@")
             .ok_or(err!(invalid_input, "malformed address"))?;
         let address_ty = protocol.parse::<AddressType>()?;

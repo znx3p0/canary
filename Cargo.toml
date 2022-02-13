@@ -50,7 +50,10 @@ uuid = { version = "~0.8.2", features = [ "wasm-bindgen" ] }
 async-timer = "0.7.4"
 
 [features]
+# use async-std as the network backend
 async-std-net = [ "async-std", "async-tungstenite/async-std-runtime" ]
+# use tokio as the network backend
 tokio-net = [ "tokio", "async-tungstenite/tokio-runtime" ]
-nightly = [ "async_t" ] # use nightly features for extra goodies
+# use nightly features for extra goodies such as zero cost communications
+nightly = [ "async_t" ]
 default = [ "tokio-net", "nightly" ]

@@ -26,13 +26,16 @@ pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
 
 cfg_if! {
     if #[cfg(all(feature = "tokio-net", not(target_arch = "wasm32")))] {
-        pub(crate) type WSS = crate::io::wss::WebSocketStream<
+        /// inner websocket type
+        pub type WSS = crate::io::wss::WebSocketStream<
             async_tungstenite::tokio::TokioAdapter<TcpStream>
         >;
     } else if #[cfg(all(feature = "async-std-net", not(target_arch = "wasm32")))] {
-        pub(crate) type WSS = crate::io::WebSocketStream<TcpStream>;
+        /// inner websocket type
+        pub type WSS = crate::io::WebSocketStream<TcpStream>;
     } else if #[cfg(target_arch = "wasm32")] {
-        pub(crate) type WSS = reqwasm::websocket::futures::WebSocket;
+        /// inner websocket type
+        pub type WSS = reqwasm::websocket::futures::WebSocket;
     }
 }
 
@@ -184,7 +187,7 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
             Channel::WSS(st) => st.wss_tx::<_, SendFmt>(obj).await,
             Channel::InsecureWSS(st) => wss_tx::<_, _, SendFmt>(st, obj).await,
 
-            Channel::__InternalPhantomData__(_) => unreachable!(),
+            Channel::__InternalPhantomData__((_, unreachable)) => match *unreachable {},
         }
     }
     /// alias to the `.send` method
@@ -223,7 +226,7 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
             Channel::WSS(st) => st.wss_rx::<_, ReadFmt>().await,
             Channel::InsecureWSS(st) => wss_rx::<_, _, ReadFmt>(st).await,
 
-            Channel::__InternalPhantomData__(_) => unreachable!(),
+            Channel::__InternalPhantomData__((_, unreachable)) => match *unreachable {},
         }
     }
     /// alias of the `.receive` method.
@@ -265,7 +268,7 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
 
             Channel::WSS(s) => s.into(),
             Channel::InsecureWSS(s) => s.into(),
-            Channel::__InternalPhantomData__(_) => unreachable!(),
+            Channel::__InternalPhantomData__((_, unreachable)) => match unreachable {},
         }
     }
     #[inline]
@@ -288,7 +291,7 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
 
             Channel::WSS(s) => s.into(),
             Channel::InsecureWSS(s) => s.into(),
-            Channel::__InternalPhantomData__(_) => unreachable!(),
+            Channel::__InternalPhantomData__((_, unreachable)) => match unreachable {},
         }
     }
 }

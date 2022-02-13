@@ -20,12 +20,14 @@
 //! and any questions should be asked in [the discord](https://discord.gg/QaWxMzAZs8)
 
 /// contains encrypted stream
-mod async_snow;
+pub mod async_snow;
 /// contains channels and constructs associated with them
 pub mod channel;
 /// contains custom error types and result
 pub mod err;
 mod io;
+/// contains common imports
+pub mod prelude;
 /// contains providers and address
 pub mod providers;
 /// contains the serialization methods for channels
