@@ -5,7 +5,6 @@ use crate::err;
 use crate::Channel;
 use cfg_if::cfg_if;
 
-// #[cfg(not(target_arch = "wasm32"))]
 use crate::channel::WSS;
 
 cfg_if! {
