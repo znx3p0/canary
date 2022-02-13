@@ -1,6 +1,6 @@
 #![forbid(unsafe_code)]
 #![forbid(missing_docs)]
-#![cfg_attr(feature = "nightly", feature(generic_associated_types))]
+#![cfg_attr(feature = "nightly", feature(generic_associated_types))] // used for async_trait support
 #![cfg_attr(feature = "nightly", feature(type_alias_impl_trait))]
 
 //! # Canary

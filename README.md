@@ -25,9 +25,10 @@ Notable features of Canary:
 
 Canary will also be supported in other languages (eventually).
 The languages in which Canary will be supported are (in order):
-- JavaScript (browser-only atm)
-- Julia
+- JavaScript
 - Python
+- Julia
+- (Other ...)
 
 ## Contribute
 If you'd like to contribute to the project, please tell us at the

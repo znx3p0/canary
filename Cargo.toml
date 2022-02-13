@@ -33,8 +33,6 @@ tracing = "0.1.30"
 cfg-if = "1"
 compact_str = { version = "0.2.0", features = [ "serde" ] }
 
-async_t = { version = "0.6.0", optional = true }
-
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 # network runtimes
 async-std = { version = "1", optional = true }
@@ -55,5 +53,5 @@ async-std-net = [ "async-std", "async-tungstenite/async-std-runtime" ]
 # use tokio as the network backend
 tokio-net = [ "tokio", "async-tungstenite/tokio-runtime" ]
 # use nightly features for extra goodies such as zero cost communications
-nightly = [ "async_t" ]
+nightly = [  ]
 default = [ "tokio-net", "nightly" ]
