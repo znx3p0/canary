@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![forbid(missing_docs)]
+// #![forbid(missing_docs)]
 #![cfg_attr(feature = "nightly", feature(generic_associated_types))] // used for async_trait support
 #![cfg_attr(feature = "nightly", feature(type_alias_impl_trait))]
 
@@ -34,6 +34,10 @@ pub mod providers;
 /// and formats
 pub mod serialization;
 pub mod type_iter;
+
+#[cfg(feature = "nightly")]
+/// offers nightly features such as zero-cost communications
+pub mod nightly;
 
 pub use channel::Channel;
 pub use err::Error;
