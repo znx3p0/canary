@@ -25,17 +25,14 @@ pub type AnyChannel = Channel<AnyInput, Bincode>;
 pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
 
 cfg_if! {
-    if #[cfg(all(feature = "tokio-net", not(target_arch = "wasm32")))] {
+    if #[cfg(target_arch = "wasm32")] {
+        /// inner websocket type
+        pub type WSS = reqwasm::websocket::futures::WebSocket;
+    } else {
         /// inner websocket type
         pub type WSS = crate::io::wss::WebSocketStream<
             async_tungstenite::tokio::TokioAdapter<TcpStream>
         >;
-    } else if #[cfg(all(feature = "async-std-net", not(target_arch = "wasm32")))] {
-        /// inner websocket type
-        pub type WSS = crate::io::WebSocketStream<TcpStream>;
-    } else if #[cfg(target_arch = "wasm32")] {
-        /// inner websocket type
-        pub type WSS = reqwasm::websocket::futures::WebSocket;
     }
 }
 

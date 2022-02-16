@@ -157,6 +157,7 @@ impl Addr {
     pub fn new(addr: &str) -> Result<Self> {
         addr.parse()
     }
+
     #[inline]
     /// connect to the address
     pub async fn connect(&self) -> Result<Channel> {

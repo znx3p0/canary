@@ -24,7 +24,6 @@ pub struct Wss(#[cfg(not(target_arch = "wasm32"))] TcpListener);
 #[cfg(not(target_arch = "wasm32"))]
 impl Wss {
     #[inline]
-    #[cfg(feature = "tokio-net")]
     /// bind the global route on the given address
     pub async fn bind(addrs: impl ToSocketAddrs) -> Result<Self> {
         let listener = TcpListener::bind(addrs).await?;
@@ -47,7 +46,6 @@ impl Wss {
         Ok(Handshake::from(chan))
     }
     #[inline]
-    #[cfg(feature = "tokio-net")]
     /// connect to the following address without discovery
     pub async fn inner_connect(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
@@ -84,7 +82,6 @@ impl Wss {
     }
 
     #[inline]
-    #[cfg(feature = "tokio-net")]
     /// connect to the following address without discovery
     pub async fn raw_connect_with_retries(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
@@ -96,55 +93,6 @@ impl Wss {
         Ok(Handshake::from(chan))
     }
 
-    #[inline]
-    #[cfg(feature = "async-std-net")]
-    /// connect to the following address without discovery
-    pub async fn inner_connect(
-        addrs: impl ToSocketAddrs + std::fmt::Debug,
-        retries: u32,
-        time_to_retry: u64,
-    ) -> Result<WSS> {
-        let mut attempt = 0;
-        let addrs = addrs
-            .to_socket_addrs()
-            .await
-            .map_err(|e| err!(e))?
-            .next()
-            .ok_or(err!("no endpoint found"))?;
-        let stream = loop {
-            match wss::async_std::connect_async(&format!("ws://{}", &addrs)).await {
-                Ok((client, _)) => {
-                    break client;
-                }
-                Err(e) => {
-                    tracing::error!(
-                        "connecting to address `{:?}` failed, attempt {} starting",
-                        addrs.to_string(),
-                        attempt
-                    );
-                    crate::runtime::sleep(std::time::Duration::from_millis(time_to_retry)).await;
-                    attempt += 1;
-                    if attempt == retries {
-                        err!((e))?
-                    }
-                    continue;
-                }
-            }
-        };
-        Ok(stream)
-    }
-    #[inline]
-    #[cfg(feature = "async-std-net")]
-    /// connect to the following address without discovery
-    pub async fn raw_connect_with_retries(
-        addrs: impl ToSocketAddrs + std::fmt::Debug,
-        retries: u32,
-        time_to_retry: u64,
-    ) -> Result<Handshake> {
-        let stream = Self::inner_connect(addrs, retries, time_to_retry).await?;
-        let chan = Channel::new_wss_encrypted(stream).await?;
-        Ok(chan)
-    }
     #[inline]
     /// connect to the following address with the following id. Defaults to 3 retries.
     pub async fn connect(addrs: impl ToSocketAddrs + std::fmt::Debug) -> Result<Handshake> {

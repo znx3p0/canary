@@ -156,7 +156,7 @@ use serde::{ser::SerializeTuple, Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::{
     fmt::{Debug, Display},
-    io::ErrorKind,
+    io::ErrorKind as StdErrorKind,
 };
 
 /// a result type equivalent to std::io::Result, but implements `Serialize` and `Deserialize`
@@ -212,7 +212,7 @@ impl Serialize for Error {
         let string = self.0.to_string();
         let mut tuple = serializer.serialize_tuple(2)?;
         tuple.serialize_element(&string)?;
-        let kind: ErrorKindSer = self.0.kind().into();
+        let kind: ErrorKind = self.0.kind().into();
         tuple.serialize_element(&kind)?;
         tuple.end()
     }
@@ -223,7 +223,7 @@ impl<'de> Deserialize<'de> for Error {
     where
         D: serde::Deserializer<'de>,
     {
-        let (error, kind) = <(String, ErrorKindSer)>::deserialize(deserializer)?;
+        let (error, kind) = <(String, ErrorKind)>::deserialize(deserializer)?;
         Ok(Error(std::io::Error::new(kind.into(), error)))
     }
 }
@@ -231,7 +231,7 @@ impl<'de> Deserialize<'de> for Error {
 #[derive(Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 /// Serializable version of `std::io::ErrorKind`
-pub enum ErrorKindSer {
+pub enum ErrorKind {
     /// An entity was not found, often a file.
     NotFound,
     /// The operation lacked the necessary privileges to complete.
@@ -403,58 +403,58 @@ pub enum ErrorKindSer {
     Uncategorized,
 }
 
-impl From<ErrorKindSer> for ErrorKind {
-    fn from(kind: ErrorKindSer) -> Self {
+impl From<ErrorKind> for StdErrorKind {
+    fn from(kind: ErrorKind) -> Self {
         match kind {
-            ErrorKindSer::NotFound => ErrorKind::NotFound,
-            ErrorKindSer::PermissionDenied => ErrorKind::PermissionDenied,
-            ErrorKindSer::ConnectionRefused => ErrorKind::ConnectionRefused,
-            ErrorKindSer::ConnectionReset => ErrorKind::ConnectionReset,
-            ErrorKindSer::ConnectionAborted => ErrorKind::ConnectionAborted,
-            ErrorKindSer::NotConnected => ErrorKind::NotConnected,
-            ErrorKindSer::AddrInUse => ErrorKind::AddrInUse,
-            ErrorKindSer::AddrNotAvailable => ErrorKind::AddrNotAvailable,
-            ErrorKindSer::BrokenPipe => ErrorKind::BrokenPipe,
-            ErrorKindSer::AlreadyExists => ErrorKind::AlreadyExists,
-            ErrorKindSer::WouldBlock => ErrorKind::WouldBlock,
-            ErrorKindSer::InvalidInput => ErrorKind::InvalidInput,
-            ErrorKindSer::InvalidData => ErrorKind::InvalidData,
-            ErrorKindSer::TimedOut => ErrorKind::TimedOut,
-            ErrorKindSer::WriteZero => ErrorKind::WriteZero,
-            ErrorKindSer::Interrupted => ErrorKind::Interrupted,
-            ErrorKindSer::Unsupported => ErrorKind::Unsupported,
-            ErrorKindSer::UnexpectedEof => ErrorKind::UnexpectedEof,
-            ErrorKindSer::OutOfMemory => ErrorKind::OutOfMemory,
-            ErrorKindSer::Other => ErrorKind::Other,
-            _ => ErrorKind::Other,
+            ErrorKind::NotFound => StdErrorKind::NotFound,
+            ErrorKind::PermissionDenied => StdErrorKind::PermissionDenied,
+            ErrorKind::ConnectionRefused => StdErrorKind::ConnectionRefused,
+            ErrorKind::ConnectionReset => StdErrorKind::ConnectionReset,
+            ErrorKind::ConnectionAborted => StdErrorKind::ConnectionAborted,
+            ErrorKind::NotConnected => StdErrorKind::NotConnected,
+            ErrorKind::AddrInUse => StdErrorKind::AddrInUse,
+            ErrorKind::AddrNotAvailable => StdErrorKind::AddrNotAvailable,
+            ErrorKind::BrokenPipe => StdErrorKind::BrokenPipe,
+            ErrorKind::AlreadyExists => StdErrorKind::AlreadyExists,
+            ErrorKind::WouldBlock => StdErrorKind::WouldBlock,
+            ErrorKind::InvalidInput => StdErrorKind::InvalidInput,
+            ErrorKind::InvalidData => StdErrorKind::InvalidData,
+            ErrorKind::TimedOut => StdErrorKind::TimedOut,
+            ErrorKind::WriteZero => StdErrorKind::WriteZero,
+            ErrorKind::Interrupted => StdErrorKind::Interrupted,
+            ErrorKind::Unsupported => StdErrorKind::Unsupported,
+            ErrorKind::UnexpectedEof => StdErrorKind::UnexpectedEof,
+            ErrorKind::OutOfMemory => StdErrorKind::OutOfMemory,
+            ErrorKind::Other => StdErrorKind::Other,
+            _ => StdErrorKind::Other,
         }
     }
 }
 
-impl From<ErrorKind> for ErrorKindSer {
-    fn from(kind: ErrorKind) -> Self {
+impl From<StdErrorKind> for ErrorKind {
+    fn from(kind: StdErrorKind) -> Self {
         match kind {
-            ErrorKind::NotFound => ErrorKindSer::NotFound,
-            ErrorKind::PermissionDenied => ErrorKindSer::PermissionDenied,
-            ErrorKind::ConnectionRefused => ErrorKindSer::ConnectionRefused,
-            ErrorKind::ConnectionReset => ErrorKindSer::ConnectionReset,
-            ErrorKind::ConnectionAborted => ErrorKindSer::ConnectionAborted,
-            ErrorKind::NotConnected => ErrorKindSer::NotConnected,
-            ErrorKind::AddrInUse => ErrorKindSer::AddrInUse,
-            ErrorKind::AddrNotAvailable => ErrorKindSer::AddrNotAvailable,
-            ErrorKind::BrokenPipe => ErrorKindSer::BrokenPipe,
-            ErrorKind::AlreadyExists => ErrorKindSer::AlreadyExists,
-            ErrorKind::WouldBlock => ErrorKindSer::WouldBlock,
-            ErrorKind::InvalidInput => ErrorKindSer::InvalidInput,
-            ErrorKind::InvalidData => ErrorKindSer::InvalidData,
-            ErrorKind::TimedOut => ErrorKindSer::TimedOut,
-            ErrorKind::WriteZero => ErrorKindSer::WriteZero,
-            ErrorKind::Interrupted => ErrorKindSer::Interrupted,
-            ErrorKind::Unsupported => ErrorKindSer::Unsupported,
-            ErrorKind::UnexpectedEof => ErrorKindSer::UnexpectedEof,
-            ErrorKind::OutOfMemory => ErrorKindSer::OutOfMemory,
-            ErrorKind::Other => ErrorKindSer::Other,
-            _ => ErrorKindSer::Other,
+            StdErrorKind::NotFound => ErrorKind::NotFound,
+            StdErrorKind::PermissionDenied => ErrorKind::PermissionDenied,
+            StdErrorKind::ConnectionRefused => ErrorKind::ConnectionRefused,
+            StdErrorKind::ConnectionReset => ErrorKind::ConnectionReset,
+            StdErrorKind::ConnectionAborted => ErrorKind::ConnectionAborted,
+            StdErrorKind::NotConnected => ErrorKind::NotConnected,
+            StdErrorKind::AddrInUse => ErrorKind::AddrInUse,
+            StdErrorKind::AddrNotAvailable => ErrorKind::AddrNotAvailable,
+            StdErrorKind::BrokenPipe => ErrorKind::BrokenPipe,
+            StdErrorKind::AlreadyExists => ErrorKind::AlreadyExists,
+            StdErrorKind::WouldBlock => ErrorKind::WouldBlock,
+            StdErrorKind::InvalidInput => ErrorKind::InvalidInput,
+            StdErrorKind::InvalidData => ErrorKind::InvalidData,
+            StdErrorKind::TimedOut => ErrorKind::TimedOut,
+            StdErrorKind::WriteZero => ErrorKind::WriteZero,
+            StdErrorKind::Interrupted => ErrorKind::Interrupted,
+            StdErrorKind::Unsupported => ErrorKind::Unsupported,
+            StdErrorKind::UnexpectedEof => ErrorKind::UnexpectedEof,
+            StdErrorKind::OutOfMemory => ErrorKind::OutOfMemory,
+            StdErrorKind::Other => ErrorKind::Other,
+            _ => ErrorKind::Other,
         }
     }
 }
