@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// used for internals.
-/// `pipe!(tx i32, rx u32)` -> `TypeIter<Tx<i32>, TypeIter<Rx<u32>>>`
+/// `pipe!(send i32, receive u32)` -> `TypeIter<Tx<i32>, TypeIter<Rx<u32>>>`
 #[macro_export]
 macro_rules! pipe {
     (send $t: ty) => {
@@ -75,8 +75,8 @@ macro_rules! rx {
 /// ```no_run
 /// pipeline! {
 ///     pub pipeline MyPipeline {
-///         tx String,
-///         rx String,
+///         send String,
+///         receive String,
 ///     }
 /// }
 /// ```
@@ -225,7 +225,7 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> MainChannel<T, Read
         Ok(MainChannel(PhantomData, self.1))
     }
 
-    /// send a str through the stream, this is an optimization done for pipelines receiving String
+    /// send a slice through the stream, this is an optimization done for pipelines receiving Vec<T>
     /// to make sure an unnecessary allocation is not made
     pub async fn tx_slice(
         mut self,
@@ -321,6 +321,20 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> PeerChannel<T, Read
     ) -> crate::Result<PeerChannel<T::Next, ReadFmt, SendFmt>>
     where
         T::Type: Transmit + Str,
+        <T as TypeIterT>::Next: TypeIterT,
+        <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send + 'static,
+    {
+        self.1.tx(obj).await?;
+        Ok(PeerChannel(PhantomData, self.1))
+    }
+    /// send a slice through the stream, this is an optimization done for pipelines receiving Vec<T>
+    /// to make sure an unnecessary allocation is not made
+    pub async fn tx_slice(
+        mut self,
+        obj: &[T::Type],
+    ) -> crate::Result<PeerChannel<T::Next, ReadFmt, SendFmt>>
+    where
+        T::Type: Transmit + Slice<T::Type> + Serialize,
         <T as TypeIterT>::Next: TypeIterT,
         <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send + 'static,
     {
