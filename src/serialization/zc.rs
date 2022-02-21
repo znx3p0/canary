@@ -52,3 +52,11 @@ pub(crate) async fn read_u64<T: Read + Unpin>(st: &mut T) -> Result<u64> {
     st.read_exact(&mut buf).await?;
     Ok(u64::from_be_bytes(buf))
 }
+
+// struct Chan<T> {
+//     stream: T
+// }
+
+// trait De {
+//     fn de(&self, r: impl std::io::Read) -> Result<()>;
+// }
