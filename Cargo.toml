@@ -1,6 +1,6 @@
 [package]
 name = "canary"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 
 repository = "https://github.com/znx3p0/canary"
@@ -37,7 +37,7 @@ compact_str = { version = "0.2.0", features = [ "serde" ] }
 tokio = { version = "1.17.0", features = [ "net", "io-util", "time" ] }
 
 # websocket support
-async-tungstenite = { version = "0.16.1", features = [ "tokio-runtime" ] }
+async-tungstenite = { version = "0.17.0", features = [ "tokio-runtime" ] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 reqwasm = { version = "0.4.0" }

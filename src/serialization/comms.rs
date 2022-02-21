@@ -95,6 +95,7 @@ where
         Message::Ping(_) => err!((invalid_data, "expected binary message, found ping message")),
         Message::Pong(_) => err!((invalid_data, "expected binary message, found pong message")),
         Message::Close(_) => err!((invalid_data, "expected binary message, found close message")),
+        Message::Frame(_) => err!((invalid_data, "expected binary message, found frame")),
     }
 }
 
