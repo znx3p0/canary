@@ -1,6 +1,4 @@
-use std::{
-    pin::Pin,
-};
+use std::pin::Pin;
 
 use futures::{pin_mut, select, stream::FuturesUnordered, FutureExt};
 use futures_lite::StreamExt;
@@ -88,7 +86,7 @@ impl AnyProvider {
     ///     chan.send("hello!").await?;
     /// }
     /// ```
-    pub fn channels(&self) -> ChannelIter<'_> {
+    pub fn channels(self) -> ChannelIter {
         ChannelIter {
             listener: self,
             futures: FuturesUnordered::new(),
@@ -97,12 +95,12 @@ impl AnyProvider {
 }
 
 /// iterator over channels. NOTE: not completely zero-cost
-pub struct ChannelIter<'a> {
-    listener: &'a AnyProvider,
+pub struct ChannelIter {
+    listener: AnyProvider,
     futures: FuturesUnordered<Pin<Box<dyn std::future::Future<Output = Result<Channel>>>>>,
 }
 
-impl<'a> ChannelIter<'a> {
+impl ChannelIter {
     /// get the next channel from the provider
     pub async fn next(&mut self) -> Result<Channel> {
         let hs = self.listener.next_handshake().fuse();
