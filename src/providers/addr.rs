@@ -13,6 +13,7 @@ use std::sync::Arc;
 
 use crate::providers::Wss;
 
+#[cfg(not(target_arch = "wasm32"))]
 use super::AnyProvider;
 
 cfg_if! {
@@ -203,15 +204,23 @@ impl Addr {
     }
 
     #[inline]
+    #[cfg(not(target_arch = "wasm32"))]
     /// connect to the address
     pub async fn bind(&self) -> Result<AnyProvider> {
         Ok(match self {
             Addr::Tcp(addrs) => AnyProvider::Tcp(Tcp::bind(**addrs).await?),
             Addr::InsecureTcp(addrs) => AnyProvider::InsecureTcp(Tcp::bind(**addrs).await?),
+            #[cfg(unix)]
             Addr::Unix(addrs) => AnyProvider::Unix(Unix::bind(&**addrs).await?),
+            #[cfg(unix)]
             Addr::InsecureUnix(addrs) => AnyProvider::InsecureUnix(Unix::bind(&**addrs).await?),
             Addr::Wss(addrs) => AnyProvider::Wss(Wss::bind(addrs.as_str()).await?),
             Addr::InsecureWss(addrs) => AnyProvider::InsecureWss(Wss::bind(addrs.as_str()).await?),
+
+            #[cfg(not(unix))]
+            Addr::Unix(_) => err!((unsupported, "binding to unix providers is not supported on non-unix platforms"))?,
+            #[cfg(not(unix))]
+            Addr::InsecureUnix(_) => err!((unsupported, "binding to unix providers is not supported on non-unix platforms"))?,
         })
     }
 }

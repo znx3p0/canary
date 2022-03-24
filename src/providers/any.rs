@@ -9,7 +9,6 @@ use super::Tcp;
 use super::Unix;
 use crate::channel::Handshake;
 use crate::Channel;
-#[cfg(not(target_arch = "wasm32"))]
 use crate::Result;
 
 use super::Wss;

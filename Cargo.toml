@@ -29,7 +29,7 @@ postcard = { version = "0.7.3", features = [ "alloc" ] }
 snow = "0.9.0" # api may change
 rand = "0.8.5"
 
-tracing = "0.1.31"
+tracing = "0.1.32"
 cfg-if = "1.0.0"
 compact_str = { version = "0.3.1", features = [ "serde" ] }
 
@@ -37,10 +37,10 @@ compact_str = { version = "0.3.1", features = [ "serde" ] }
 tokio = { version = "1.17.0", features = [ "net", "io-util", "time" ] }
 
 # websocket support
-async-tungstenite = { version = "0.17.0", features = [ "tokio-runtime" ] }
+async-tungstenite = { version = "0.17.2", features = [ "tokio-runtime" ] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-reqwasm = { version = "0.4.1" }
+reqwasm = { version = "0.5.0" }
 getrandom = { version = "~0.2.5", features = [ "js" ] }
 uuid = { version = "~0.8.2", features = [ "wasm-bindgen" ] }
 async-timer = "0.7.4"
