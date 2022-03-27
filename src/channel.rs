@@ -1,11 +1,9 @@
+use crate::async_snow::Snow;
+use crate::io::{Read, Write};
 use cfg_if::cfg_if;
 use derive_more::From;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::marker::PhantomData;
-
-use crate::async_snow::Snow;
-use crate::io::{Read, Write};
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::io::TcpStream;
@@ -14,15 +12,10 @@ use crate::io::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::io::UnixStream;
 
-use crate::serialization::formats::{Any, Bincode, Bson, Json, Postcard, ReadFormat, SendFormat};
+use crate::serialization::formats::Format;
 use crate::serialization::{rx, tx, wss_rx, wss_tx};
 use crate::type_iter::{MainChannel, PeerChannel, Pipeline};
 use crate::Result;
-
-/// channel that allows input with any serialization format. supports bincode, json, bson and postcard and deserializes in that order
-pub type AnyChannel = Channel<AnyInput, Bincode>;
-/// read format that allows input with any serialization format. supports bincode, json, bson and postcard and deserializes in that order
-pub type AnyInput = Any<Bincode, Any<Json, Any<Bson, Postcard>>>;
 
 cfg_if! {
     if #[cfg(target_arch = "wasm32")] {
@@ -36,7 +29,6 @@ cfg_if! {
     }
 }
 
-#[derive(From)]
 /// `Channel` abstracts network communications as object streams.
 ///
 /// ```norun
@@ -45,88 +37,48 @@ cfg_if! {
 ///     Ok(())
 /// }
 /// ```
-pub enum Channel<ReadFmt: ReadFormat = Bincode, SendFmt: SendFormat = Bincode> {
-    #[cfg(not(target_arch = "wasm32"))]
-    /// encrypted tcp backend
-    Tcp(Snow<TcpStream>),
-    #[cfg(not(target_arch = "wasm32"))]
-    /// unencrypted tcp backend
-    InsecureTcp(TcpStream),
+pub struct Channel {
+    inner: InnerChannel,
+    format: Format,
+}
 
-    /// encrypted backend for any type that implements Read + Write
-    EncryptedAny(Snow<Box<dyn ReadWrite>>),
-    /// unencrypted backend for any type that implements Read + Write
-    InsecureAny(Box<dyn ReadWrite>),
-
-    #[cfg(unix)]
-    #[cfg(not(target_arch = "wasm32"))]
-    /// encrypted unix backend
-    Unix(Snow<UnixStream>),
-    #[cfg(unix)]
-    #[cfg(not(target_arch = "wasm32"))]
-    /// unencrypted unix backend
-    InsecureUnix(UnixStream),
-
-    /// encrypted wss backend
-    WSS(Snow<WSS>),
-    /// unencrypted wss backend
-    InsecureWSS(WSS),
-
-    #[allow(non_camel_case_types)]
-    /// used to hold the generic types, `Infallible` makes sure that this variant cannot
-    /// be constructed without unsafe
-    __InternalPhantomData__((PhantomData<(ReadFmt, SendFmt)>, core::convert::Infallible)),
+impl<T: Into<InnerChannel>> From<T> for Channel {
+    fn from(inner: T) -> Self {
+        let inner: InnerChannel = inner.into();
+        Channel {
+            inner,
+            format: Format::Bincode,
+        }
+    }
 }
 
 #[derive(From)]
-/// `BareChannel` is a non-generic version of `Channel` used to make conversion between channels types easier
-pub enum BareChannel {
+enum InnerChannel {
+    #[cfg(not(target_arch = "wasm32"))]
     /// encrypted tcp backend
-    #[cfg(not(target_arch = "wasm32"))]
     Tcp(Snow<TcpStream>),
-    /// encrypted backend for any type that implements Read + Write
-    EncryptedAny(Snow<Box<dyn ReadWrite>>),
-    /// unencrypted tcp backend
     #[cfg(not(target_arch = "wasm32"))]
+    /// unencrypted tcp backend
     InsecureTcp(TcpStream),
-    /// unencrypted backend for any type that implements Read + Write
-    InsecureAny(Box<dyn ReadWrite>),
 
     #[cfg(unix)]
     #[cfg(not(target_arch = "wasm32"))]
     /// encrypted unix backend
     Unix(Snow<UnixStream>),
-    /// unencrypted unix backend
     #[cfg(unix)]
     #[cfg(not(target_arch = "wasm32"))]
+    /// unencrypted unix backend
     InsecureUnix(UnixStream),
+
     /// encrypted wss backend
     WSS(Snow<WSS>),
     /// unencrypted wss backend
     InsecureWSS(WSS),
-}
 
-impl<R: ReadFormat, S: SendFormat> From<BareChannel> for Channel<R, S> {
-    #[inline]
-    fn from(c: BareChannel) -> Self {
-        match c {
-            #[cfg(not(target_arch = "wasm32"))]
-            BareChannel::Tcp(s) => s.into(),
-            BareChannel::EncryptedAny(s) => s.into(),
-            #[cfg(not(target_arch = "wasm32"))]
-            BareChannel::InsecureTcp(s) => s.into(),
-            BareChannel::InsecureAny(s) => s.into(),
-
-            #[cfg(unix)]
-            #[cfg(not(target_arch = "wasm32"))]
-            BareChannel::Unix(s) => s.into(),
-            #[cfg(unix)]
-            #[cfg(not(target_arch = "wasm32"))]
-            BareChannel::InsecureUnix(s) => s.into(),
-            BareChannel::WSS(s) => s.into(),
-            BareChannel::InsecureWSS(s) => s.into(),
-        }
-    }
+    /// encrypted backend for any type that implements Read + Write
+    EncryptedAny(Snow<Box<dyn ReadWrite>>),
+    /// unencrypted backend for any type that implements Read + Write
+    InsecureAny(Box<dyn ReadWrite>),
 }
 
 /// wrapper trait to allow any type that implements `Read`, `Write`, `Send`, `Sync` and `'static`
@@ -135,7 +87,7 @@ pub trait ReadWrite: Read + Write + Unpin + Send + Sync + 'static {}
 
 impl<T: Read + Write + 'static + Unpin + Send + Sync> ReadWrite for T {}
 
-impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
+impl Channel {
     #[cfg(not(target_arch = "wasm32"))]
     /// create a new channel from a tcp stream
     pub async fn new_tcp_encrypted(stream: TcpStream) -> Result<Self> {
@@ -166,25 +118,24 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
     /// }
     /// ```
     pub async fn send<O: Serialize>(&mut self, obj: O) -> Result<usize> {
-        match self {
+        let f = &self.format;
+        match &mut self.inner {
             #[cfg(not(target_arch = "wasm32"))]
-            Channel::Tcp(st) => st.tx::<_, SendFmt>(obj).await,
-            Channel::EncryptedAny(st) => st.tx::<_, SendFmt>(obj).await,
-            Channel::InsecureAny(st) => tx::<_, _, SendFmt>(st, obj).await,
+            InnerChannel::Tcp(st) => st.tx(obj, f).await,
+            InnerChannel::EncryptedAny(st) => st.tx(obj, f).await,
+            InnerChannel::InsecureAny(st) => tx(st, obj, f).await,
             #[cfg(not(target_arch = "wasm32"))]
-            Channel::InsecureTcp(st) => tx::<_, _, SendFmt>(st, obj).await,
+            InnerChannel::InsecureTcp(st) => tx(st, obj, f).await,
 
             #[cfg(unix)]
             #[cfg(not(target_arch = "wasm32"))]
-            Channel::Unix(st) => st.tx::<_, SendFmt>(obj).await,
+            InnerChannel::Unix(st) => st.tx(obj, f).await,
             #[cfg(unix)]
             #[cfg(not(target_arch = "wasm32"))]
-            Channel::InsecureUnix(st) => tx::<_, _, SendFmt>(st, obj).await,
+            InnerChannel::InsecureUnix(st) => tx(st, obj, f).await,
 
-            Channel::WSS(st) => st.wss_tx::<_, SendFmt>(obj).await,
-            Channel::InsecureWSS(st) => wss_tx::<_, _, SendFmt>(st, obj).await,
-
-            Channel::__InternalPhantomData__((_, unreachable)) => match *unreachable {},
+            InnerChannel::WSS(st) => st.wss_tx(obj, f).await,
+            InnerChannel::InsecureWSS(st) => wss_tx(st, obj, f).await,
         }
     }
     /// alias to the `.send` method
@@ -205,25 +156,24 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
     /// }
     /// ```
     pub async fn receive<O: DeserializeOwned>(&mut self) -> Result<O> {
-        match self {
+        let f = &self.format;
+        match &mut self.inner {
             #[cfg(not(target_arch = "wasm32"))]
-            Channel::Tcp(st) => st.rx::<_, ReadFmt>().await,
-            Channel::EncryptedAny(st) => st.rx::<_, ReadFmt>().await,
-            Channel::InsecureAny(st) => rx::<_, _, ReadFmt>(st).await,
+            InnerChannel::Tcp(st) => st.rx(f).await,
+            InnerChannel::EncryptedAny(st) => st.rx(f).await,
+            InnerChannel::InsecureAny(st) => rx(st, f).await,
             #[cfg(not(target_arch = "wasm32"))]
-            Channel::InsecureTcp(st) => rx::<_, _, ReadFmt>(st).await,
+            InnerChannel::InsecureTcp(st) => rx(st, f).await,
 
             #[cfg(unix)]
             #[cfg(not(target_arch = "wasm32"))]
-            Channel::Unix(st) => st.rx::<_, ReadFmt>().await,
+            InnerChannel::Unix(st) => st.rx(f).await,
             #[cfg(unix)]
             #[cfg(not(target_arch = "wasm32"))]
-            Channel::InsecureUnix(st) => rx::<_, _, ReadFmt>(st).await,
+            InnerChannel::InsecureUnix(st) => rx(st, f).await,
 
-            Channel::WSS(st) => st.wss_rx::<_, ReadFmt>().await,
-            Channel::InsecureWSS(st) => wss_rx::<_, _, ReadFmt>(st).await,
-
-            Channel::__InternalPhantomData__((_, unreachable)) => match *unreachable {},
+            InnerChannel::WSS(st) => st.wss_rx(f).await,
+            InnerChannel::InsecureWSS(st) => wss_rx(st, f).await,
         }
     }
     /// alias of the `.receive` method.
@@ -238,58 +188,16 @@ impl<ReadFmt: ReadFormat, SendFmt: SendFormat> Channel<ReadFmt, SendFmt> {
         self.receive().await
     }
     /// construct a typed wrapper for a channel using pipelines, its asymmetric peer is `PeerChannel`
-    pub fn new_main<P: Pipeline>(self) -> MainChannel<P::Pipe, ReadFmt, SendFmt> {
+    pub fn new_main<P: Pipeline>(self) -> MainChannel<P::Pipe> {
         MainChannel(Default::default(), self)
     }
     /// construct a typed wrapper for a channel using pipelines, its asymmetric peer is `MainChannel`
-    pub fn new_peer<P: Pipeline>(self) -> PeerChannel<P::Pipe, ReadFmt, SendFmt> {
+    pub fn new_peer<P: Pipeline>(self) -> PeerChannel<P::Pipe> {
         PeerChannel(Default::default(), self)
     }
-    /// coerce a channel into another kind of channel:
-    /// `Channel` -> `Channel<Json, Bincode>` -> `AnyChannel`
-    pub fn coerce<R: ReadFormat, S: SendFormat>(self) -> Channel<R, S> {
-        match self {
-            #[cfg(not(target_arch = "wasm32"))]
-            Channel::Tcp(s) => s.into(),
-            Channel::EncryptedAny(s) => s.into(),
-            #[cfg(not(target_arch = "wasm32"))]
-            Channel::InsecureTcp(s) => s.into(),
-            Channel::InsecureAny(s) => s.into(),
-
-            #[cfg(unix)]
-            #[cfg(not(target_arch = "wasm32"))]
-            Channel::Unix(s) => s.into(),
-            #[cfg(unix)]
-            #[cfg(not(target_arch = "wasm32"))]
-            Channel::InsecureUnix(s) => s.into(),
-
-            Channel::WSS(s) => s.into(),
-            Channel::InsecureWSS(s) => s.into(),
-            Channel::__InternalPhantomData__((_, unreachable)) => match unreachable {},
-        }
-    }
-    #[inline]
-    /// make the channel bare, stripping it from its generics
-    pub fn bare(self) -> BareChannel {
-        match self {
-            #[cfg(not(target_arch = "wasm32"))]
-            Channel::Tcp(s) => s.into(),
-            Channel::EncryptedAny(s) => s.into(),
-            #[cfg(not(target_arch = "wasm32"))]
-            Channel::InsecureTcp(s) => s.into(),
-            Channel::InsecureAny(s) => s.into(),
-
-            #[cfg(unix)]
-            #[cfg(not(target_arch = "wasm32"))]
-            Channel::Unix(s) => s.into(),
-            #[cfg(unix)]
-            #[cfg(not(target_arch = "wasm32"))]
-            Channel::InsecureUnix(s) => s.into(),
-
-            Channel::WSS(s) => s.into(),
-            Channel::InsecureWSS(s) => s.into(),
-            Channel::__InternalPhantomData__((_, unreachable)) => match unreachable {},
-        }
+    /// set the format of the channel
+    pub fn set_format(&mut self, format: Format) {
+        self.format = format
     }
 }
 
@@ -305,15 +213,15 @@ impl Handshake {
     /// }
     /// ```
     pub async fn encrypted(self) -> Result<Channel> {
-        match self.0 {
+        match self.0.inner {
             #[cfg(not(target_arch = "wasm32"))]
-            Channel::InsecureTcp(tcp) => Channel::new_tcp_encrypted(tcp).await,
-            Channel::InsecureAny(any) => Channel::new_any_encrypted(any).await,
+            InnerChannel::InsecureTcp(tcp) => Channel::new_tcp_encrypted(tcp).await,
+            InnerChannel::InsecureAny(any) => Channel::new_any_encrypted(any).await,
             #[cfg(not(target_arch = "wasm32"))]
             #[cfg(unix)]
-            Channel::InsecureUnix(unix) => Channel::new_unix_encrypted(unix).await,
-            Channel::InsecureWSS(wss) => Channel::new_wss_encrypted(wss).await,
-            encrypted => Ok(encrypted), // double encryption is not supported
+            InnerChannel::InsecureUnix(unix) => Channel::new_unix_encrypted(unix).await,
+            InnerChannel::InsecureWSS(wss) => Channel::new_wss_encrypted(wss).await,
+            encrypted => Ok(encrypted.into()), // double encryption is not supported
         }
     }
     #[inline]

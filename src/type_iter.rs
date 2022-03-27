@@ -5,11 +5,7 @@ use std::marker::PhantomData;
 
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::{
-    channel::BareChannel,
-    serialization::formats::{Bincode, ReadFormat, SendFormat},
-    Channel,
-};
+use crate::Channel;
 
 /// used for internals.
 /// `pipe!(send i32, receive u32)` -> `TypeIter<Tx<i32>, TypeIter<Rx<u32>>>`
@@ -161,23 +157,18 @@ impl<T> Slice<T> for Tx<&[T]> {}
 impl<T> Slice<T> for Tx<Vec<T>> {}
 
 /// Used for writing services, peer services should use PeerChannel.
-pub struct MainChannel<T: TypeIterT, ReadFmt: ReadFormat = Bincode, SendFmt: SendFormat = Bincode>(
-    pub(crate) PhantomData<T>,
-    pub(crate) Channel<ReadFmt, SendFmt>,
-);
+pub struct MainChannel<T: TypeIterT>(pub(crate) PhantomData<T>, pub(crate) Channel);
 
-impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> MainChannel<T, ReadFmt, SendFmt> {
+impl<T: TypeIterT> MainChannel<T> {
     /// construct a new main channel
-    pub fn new<P: Pipeline>(
-        chan: Channel<ReadFmt, SendFmt>,
-    ) -> MainChannel<P::Pipe, ReadFmt, SendFmt> {
+    pub fn new<P: Pipeline>(chan: Channel) -> MainChannel<P::Pipe> {
         MainChannel(PhantomData, chan)
     }
     /// send an object through the stream and iterate to the next type
     pub async fn tx(
         mut self,
         obj: <T::Type as Transmit>::Type,
-    ) -> crate::Result<MainChannel<T::Next, ReadFmt, SendFmt>>
+    ) -> crate::Result<MainChannel<T::Next>>
     where
         T::Type: Transmit,
         <T as TypeIterT>::Next: TypeIterT,
@@ -187,12 +178,7 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> MainChannel<T, Read
         Ok(MainChannel(PhantomData, self.1))
     }
     /// receive an object from the stream and iterate to the next type
-    pub async fn rx(
-        mut self,
-    ) -> crate::Result<(
-        <T::Type as Receive>::Type,
-        MainChannel<T::Next, ReadFmt, SendFmt>,
-    )>
+    pub async fn rx(mut self) -> crate::Result<(<T::Type as Receive>::Type, MainChannel<T::Next>)>
     where
         T::Type: Receive,
         <T as TypeIterT>::Next: TypeIterT,
@@ -203,19 +189,12 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> MainChannel<T, Read
         Ok((res, chan))
     }
     /// coerce into a different kind of channel:
-    pub fn coerce(self) -> Channel<ReadFmt, SendFmt> {
+    pub fn coerce(self) -> Channel {
         self.1
-    }
-    /// make the channel bare, stripping it from its generics
-    pub fn bare(self) -> BareChannel {
-        self.1.bare()
     }
     /// send a str through the stream, this is an optimization done for pipelines receiving String
     /// to make sure an unnecessary allocation is not made
-    pub async fn tx_str(
-        mut self,
-        obj: &str,
-    ) -> crate::Result<MainChannel<T::Next, ReadFmt, SendFmt>>
+    pub async fn tx_str(mut self, obj: &str) -> crate::Result<MainChannel<T::Next>>
     where
         T::Type: Transmit + Str,
         <T as TypeIterT>::Next: TypeIterT,
@@ -227,10 +206,7 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> MainChannel<T, Read
 
     /// send a slice through the stream, this is an optimization done for pipelines receiving Vec<T>
     /// to make sure an unnecessary allocation is not made
-    pub async fn tx_slice(
-        mut self,
-        obj: &[T::Type],
-    ) -> crate::Result<MainChannel<T::Next, ReadFmt, SendFmt>>
+    pub async fn tx_slice(mut self, obj: &[T::Type]) -> crate::Result<MainChannel<T::Next>>
     where
         T::Type: Transmit + Slice<T::Type> + Serialize,
         <T as TypeIterT>::Next: TypeIterT,
@@ -241,31 +217,12 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> MainChannel<T, Read
     }
 }
 
-impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> From<MainChannel<T, ReadFmt, SendFmt>>
-    for Channel<ReadFmt, SendFmt>
-{
-    fn from(s: MainChannel<T, ReadFmt, SendFmt>) -> Self {
-        s.coerce()
-    }
-}
-
-impl<T: TypeIterT> From<PeerChannel<T>> for Channel {
-    fn from(s: PeerChannel<T>) -> Self {
-        s.coerce()
-    }
-}
-
 /// Used for consuming services. Services should use MainChannel.
-pub struct PeerChannel<T: TypeIterT, ReadFmt: ReadFormat = Bincode, SendFmt: SendFormat = Bincode>(
-    pub(crate) PhantomData<T>,
-    pub(crate) Channel<ReadFmt, SendFmt>,
-);
+pub struct PeerChannel<T: TypeIterT>(pub(crate) PhantomData<T>, pub(crate) Channel);
 
-impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> PeerChannel<T, ReadFmt, SendFmt> {
+impl<T: TypeIterT> PeerChannel<T> {
     /// construct a new peer channel
-    pub fn new<P: Pipeline>(
-        chan: Channel<ReadFmt, SendFmt>,
-    ) -> PeerChannel<P::Pipe, ReadFmt, SendFmt>
+    pub fn new<P: Pipeline>(chan: Channel) -> PeerChannel<P::Pipe>
     where
         <P as Pipeline>::Pipe: TypeIterT,
     {
@@ -275,7 +232,7 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> PeerChannel<T, Read
     pub async fn tx(
         mut self,
         obj: <T::Type as Receive>::Type,
-    ) -> crate::Result<PeerChannel<T::Next, ReadFmt, SendFmt>>
+    ) -> crate::Result<PeerChannel<T::Next>>
     where
         T::Type: Receive,
         <T as TypeIterT>::Next: TypeIterT,
@@ -286,12 +243,7 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> PeerChannel<T, Read
     }
 
     /// receive an object from the stream and iterate to the next type
-    pub async fn rx(
-        mut self,
-    ) -> crate::Result<(
-        <T::Type as Transmit>::Type,
-        PeerChannel<T::Next, ReadFmt, SendFmt>,
-    )>
+    pub async fn rx(mut self) -> crate::Result<(<T::Type as Transmit>::Type, PeerChannel<T::Next>)>
     where
         T::Type: Transmit,
         <T as TypeIterT>::Next: TypeIterT,
@@ -302,23 +254,12 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> PeerChannel<T, Read
         Ok((res, chan))
     }
     /// coerce into a different kind of channel:
-    pub fn channel(self) -> Channel<ReadFmt, SendFmt> {
+    pub fn channel(self) -> Channel {
         self.1
-    }
-    /// make the channel bare, stripping it from its generics
-    pub fn bare(self) -> BareChannel {
-        self.1.bare()
-    }
-    /// coerce into a different kind of channel:
-    pub fn coerce<R: ReadFormat, S: SendFormat>(self) -> Channel<R, S> {
-        self.1.coerce()
     }
     /// send a str through the stream, this is an optimization done for pipelines receiving String
     /// to make sure an unnecessary allocation is not made
-    pub async fn tx_str(
-        mut self,
-        obj: &str,
-    ) -> crate::Result<PeerChannel<T::Next, ReadFmt, SendFmt>>
+    pub async fn tx_str(mut self, obj: &str) -> crate::Result<PeerChannel<T::Next>>
     where
         T::Type: Transmit + Str,
         <T as TypeIterT>::Next: TypeIterT,
@@ -329,10 +270,7 @@ impl<T: TypeIterT, ReadFmt: ReadFormat, SendFmt: SendFormat> PeerChannel<T, Read
     }
     /// send a slice through the stream, this is an optimization done for pipelines receiving Vec<T>
     /// to make sure an unnecessary allocation is not made
-    pub async fn tx_slice(
-        mut self,
-        obj: &[T::Type],
-    ) -> crate::Result<PeerChannel<T::Next, ReadFmt, SendFmt>>
+    pub async fn tx_slice(mut self, obj: &[T::Type]) -> crate::Result<PeerChannel<T::Next>>
     where
         T::Type: Transmit + Slice<T::Type> + Serialize,
         <T as TypeIterT>::Next: TypeIterT,

@@ -218,9 +218,15 @@ impl Addr {
             Addr::InsecureWss(addrs) => AnyProvider::InsecureWss(Wss::bind(addrs.as_str()).await?),
 
             #[cfg(not(unix))]
-            Addr::Unix(_) => err!((unsupported, "binding to unix providers is not supported on non-unix platforms"))?,
+            Addr::Unix(_) => err!((
+                unsupported,
+                "binding to unix providers is not supported on non-unix platforms"
+            ))?,
             #[cfg(not(unix))]
-            Addr::InsecureUnix(_) => err!((unsupported, "binding to unix providers is not supported on non-unix platforms"))?,
+            Addr::InsecureUnix(_) => err!((
+                unsupported,
+                "binding to unix providers is not supported on non-unix platforms"
+            ))?,
         })
     }
 }

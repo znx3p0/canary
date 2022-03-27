@@ -73,8 +73,8 @@ impl<T: ReadWrite + Unpin> Snow<T> {
 
         let should_init = loop {
             let local_num = rand::random::<u64>();
-            tx::<_, _, Bincode>(&mut stream, local_num).await?;
-            let peer_num = rx::<_, _, Bincode>(&mut stream).await?;
+            tx(&mut stream, local_num, &Bincode).await?;
+            let peer_num = rx(&mut stream, &Bincode).await?;
             if local_num == peer_num {
                 continue;
             }
@@ -88,10 +88,10 @@ impl<T: ReadWrite + Unpin> Snow<T> {
         let keypair = builder.generate_keypair().or_else(|e| err!((other, e)))?;
         let builder = builder.local_private_key(&keypair.private);
         // send public key to peer
-        tx::<_, _, Bincode>(&mut stream, keypair.public).await?;
+        tx(&mut stream, keypair.public, &Bincode).await?;
 
         // receive peer's public key
-        let peer_public_key = rx::<_, Vec<u8>, Bincode>(&mut stream).await?;
+        let peer_public_key = rx::<_, Vec<u8>, _>(&mut stream, &Bincode).await?;
         // set peer's public key
         let builder = builder.remote_public_key(&peer_public_key);
 
@@ -104,11 +104,11 @@ impl<T: ReadWrite + Unpin> Snow<T> {
                 let len = handshake
                     .write_message(&[], &mut buf)
                     .or_else(|e| err!((other, e)))?;
-                tx::<_, _, Bincode>(&mut stream, &buf[..len]).await?;
+                tx(&mut stream, &buf[..len], &Bincode).await?;
 
                 // <- e, ee, s, es
                 handshake
-                    .read_message(&rx::<_, Vec<u8>, Bincode>(&mut stream).await?, &mut buf)
+                    .read_message(&rx::<_, Vec<u8>, _>(&mut stream, &Bincode).await?, &mut buf)
                     .or_else(|e| err!((other, e)))?;
 
                 let transport = handshake
@@ -122,14 +122,14 @@ impl<T: ReadWrite + Unpin> Snow<T> {
 
                 // <- e
                 handshake
-                    .read_message(&rx::<_, Vec<u8>, Bincode>(&mut stream).await?, &mut buf)
+                    .read_message(&rx::<_, Vec<u8>, _>(&mut stream, &Bincode).await?, &mut buf)
                     .or_else(|e| err!((other, e)))?;
 
                 // -> e, ee, s, es
                 let len = handshake
                     .write_message(&[0u8; 0], &mut buf)
                     .or_else(|e| err!((other, e)))?;
-                tx::<_, _, Bincode>(&mut stream, &buf[..len]).await?;
+                tx(&mut stream, &buf[..len], &Bincode).await?;
 
                 // Transition the state machine into transport mode now that the handshake is complete.
                 let transport = handshake
@@ -149,7 +149,7 @@ impl<T: ReadWrite + Unpin> Snow<T> {
     /// }
     /// ```
     #[inline]
-    pub async fn rx<O: DeserializeOwned, F: ReadFormat>(&mut self) -> Result<O> {
+    pub async fn rx<O: DeserializeOwned, F: ReadFormat>(&mut self, f: &F) -> Result<O> {
         let size = zc::read_u64(&mut self.stream).await?;
         // receive message
         let mut buf = zc::try_vec(size as _)?;
@@ -165,7 +165,7 @@ impl<T: ReadWrite + Unpin> Snow<T> {
             msg.append(&mut inner);
         }
 
-        F::deserialize(&msg)
+        f.deserialize(&msg)
     }
 
     /// send message to stream
@@ -176,9 +176,9 @@ impl<T: ReadWrite + Unpin> Snow<T> {
     /// }
     /// ```
     #[inline]
-    pub async fn tx<O: Serialize, F: SendFormat>(&mut self, obj: O) -> Result<usize> {
+    pub async fn tx<O: Serialize, F: SendFormat>(&mut self, obj: O, f: &F) -> Result<usize> {
         // serialize or return invalid data error
-        let vec = F::serialize(&obj)?;
+        let vec = f.serialize(&obj)?;
 
         let msg = self.encrypt_packets(&vec)?;
 
@@ -208,9 +208,9 @@ impl Snow<WSS> {
         let should_init = loop {
             let local_num = rand::random::<u64>();
 
-            wss_tx::<_, _, Bincode>(&mut stream, local_num).await?;
+            wss_tx(&mut stream, local_num, &Bincode).await?;
 
-            let peer_num = wss_rx::<_, _, Bincode>(&mut stream).await?;
+            let peer_num = wss_rx(&mut stream, &Bincode).await?;
             if local_num == peer_num {
                 continue;
             }
@@ -224,10 +224,10 @@ impl Snow<WSS> {
         let keypair = builder.generate_keypair().or_else(|e| err!((other, e)))?;
         let builder = builder.local_private_key(&keypair.private);
         // send public key to peer
-        wss_tx::<_, _, Bincode>(&mut stream, keypair.public).await?;
+        wss_tx(&mut stream, keypair.public, &Bincode).await?;
 
         // receive peer's public key
-        let peer_public_key = wss_rx::<_, Vec<u8>, Bincode>(&mut stream).await?;
+        let peer_public_key = wss_rx::<_, Vec<u8>, _>(&mut stream, &Bincode).await?;
         // set peer's public key
         let builder = builder.remote_public_key(&peer_public_key);
 
@@ -240,11 +240,14 @@ impl Snow<WSS> {
                 let len = handshake
                     .write_message(&[], &mut buf)
                     .or_else(|e| err!((other, e)))?;
-                wss_tx::<_, _, Bincode>(&mut stream, &buf[..len]).await?;
+                wss_tx(&mut stream, &buf[..len], &Bincode).await?;
 
                 // <- e, ee, s, es
                 handshake
-                    .read_message(&wss_rx::<_, Vec<u8>, Bincode>(&mut stream).await?, &mut buf)
+                    .read_message(
+                        &wss_rx::<_, Vec<u8>, _>(&mut stream, &Bincode).await?,
+                        &mut buf,
+                    )
                     .or_else(|e| err!((other, e)))?;
 
                 let transport = handshake
@@ -258,14 +261,17 @@ impl Snow<WSS> {
 
                 // <- e
                 handshake
-                    .read_message(&wss_rx::<_, Vec<u8>, Bincode>(&mut stream).await?, &mut buf)
+                    .read_message(
+                        &wss_rx::<_, Vec<u8>, _>(&mut stream, &Bincode).await?,
+                        &mut buf,
+                    )
                     .or_else(|e| err!((other, e)))?;
 
                 // -> e, ee, s, es
                 let len = handshake
                     .write_message(&[0u8; 0], &mut buf)
                     .or_else(|e| err!((other, e)))?;
-                wss_tx::<_, _, Bincode>(&mut stream, &buf[..len]).await?;
+                wss_tx(&mut stream, &buf[..len], &Bincode).await?;
 
                 // Transition the state machine into transport mode now that the handshake is complete.
                 let transport = handshake
@@ -285,8 +291,8 @@ impl Snow<WSS> {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn wss_rx<O: DeserializeOwned, F: ReadFormat>(&mut self) -> Result<O> {
-        let buf: Vec<u8> = wss_rx::<_, _, F>(&mut self.stream).await?;
+    pub async fn wss_rx<O: DeserializeOwned, F: ReadFormat>(&mut self, f: &F) -> Result<O> {
+        let buf: Vec<u8> = wss_rx(&mut self.stream, f).await?;
 
         let mut msg = vec![];
 
@@ -298,7 +304,7 @@ impl Snow<WSS> {
             msg.append(&mut inner);
         }
 
-        F::deserialize(&msg)
+        f.deserialize(&msg)
     }
 
     #[inline]
@@ -309,14 +315,14 @@ impl Snow<WSS> {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn wss_tx<O: Serialize, F: SendFormat>(&mut self, obj: O) -> Result<usize> {
+    pub async fn wss_tx<O: Serialize, F: SendFormat>(&mut self, obj: O, f: &F) -> Result<usize> {
         // serialize or return invalid data error
-        let vec = F::serialize(&obj)?;
+        let vec = f.serialize(&obj)?;
 
         let msg = self.encrypt_packets(&vec)?;
         let len = msg.len();
 
-        wss_tx::<_, _, F>(&mut self.stream, msg).await?;
+        wss_tx(&mut self.stream, msg, f).await?;
         Ok(len)
     }
 }

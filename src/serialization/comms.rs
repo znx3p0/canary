@@ -15,12 +15,12 @@ use super::formats::{ReadFormat, SendFormat};
 use super::zc;
 
 /// send an item through the stream
-pub async fn tx<T, O, F: SendFormat>(st: &mut T, obj: O) -> Result<usize>
+pub async fn tx<T, O, F: SendFormat>(st: &mut T, obj: O, f: &F) -> Result<usize>
 where
     T: Write + Unpin,
     O: Serialize,
 {
-    let serialized = F::serialize(&obj)?;
+    let serialized = f.serialize(&obj)?;
     zc::send_u64(st, serialized.len() as _).await?;
     // return length of object sent
     st.write_all(&serialized).await?;
@@ -29,7 +29,7 @@ where
 }
 
 /// receive an item from the stream
-pub async fn rx<T, O, F: ReadFormat>(st: &mut T) -> Result<O>
+pub async fn rx<T, O, F: ReadFormat>(st: &mut T, f: &F) -> Result<O>
 where
     T: Read + Unpin,
     O: DeserializeOwned,
@@ -40,18 +40,18 @@ where
     let mut buf = zc::try_vec(size as usize)?;
     // read message into buffer
     st.read_exact(&mut buf).await?;
-    F::deserialize(&buf)
+    f.deserialize(&buf)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 /// send a message from a websocket stream
-pub async fn wss_tx<T, O, F: SendFormat>(st: &mut T, obj: O) -> Result<usize>
+pub async fn wss_tx<T, O, F: SendFormat>(st: &mut T, obj: O, f: &F) -> Result<usize>
 where
     T: futures::prelude::Sink<Message> + Unpin,
     O: Serialize,
     <T as futures::prelude::Sink<Message>>::Error: ToString,
 {
-    let serialized = F::serialize(&obj)?;
+    let serialized = f.serialize(&obj)?;
     let len = serialized.len();
     let msg = Message::Binary(serialized);
     st.feed(msg).await.map_err(|e| err!(e.to_string()))?;
@@ -61,13 +61,13 @@ where
 
 #[cfg(target_arch = "wasm32")]
 /// send a message from a websocket stream
-pub async fn wss_tx<T, O, F: SendFormat>(st: &mut T, obj: O) -> Result<usize>
+pub async fn wss_tx<T, O, F: SendFormat>(st: &mut T, obj: O, f: &F) -> Result<usize>
 where
     T: futures::prelude::Sink<Message> + Unpin,
     O: Serialize,
     <T as futures::prelude::Sink<Message>>::Error: ToString,
 {
-    let serialized = F::serialize(&obj)?;
+    let serialized = f.serialize(&obj)?;
     let len = serialized.len();
     let msg = Message::Bytes(serialized);
     st.feed(msg).await.map_err(|e| err!(e.to_string()))?;
@@ -77,7 +77,7 @@ where
 
 #[cfg(not(target_arch = "wasm32"))]
 /// receive a message from a websocket stream
-pub async fn wss_rx<T, O, F: ReadFormat>(st: &mut T) -> Result<O>
+pub async fn wss_rx<T, O, F: ReadFormat>(st: &mut T, f: &F) -> Result<O>
 where
     T: futures::prelude::Stream<
             Item = std::result::Result<Message, crate::io::wss::tungstenite::error::Error>,
@@ -90,7 +90,7 @@ where
         .ok_or(err!(broken_pipe, "websocket connection broke"))?
         .map_err(|e| err!(broken_pipe, e))?;
     match msg {
-        Message::Binary(vec) => F::deserialize(&vec),
+        Message::Binary(vec) => f.deserialize(&vec),
         Message::Text(_) => err!((invalid_data, "expected binary message, found text message")),
         Message::Ping(_) => err!((invalid_data, "expected binary message, found ping message")),
         Message::Pong(_) => err!((invalid_data, "expected binary message, found pong message")),
@@ -101,7 +101,7 @@ where
 
 #[cfg(target_arch = "wasm32")]
 /// receive a message from a websocket stream
-pub async fn wss_rx<T, O, F: ReadFormat>(st: &mut T) -> Result<O>
+pub async fn wss_rx<T, O, F: ReadFormat>(st: &mut T, f: &F) -> Result<O>
 where
     T: futures::prelude::Stream<
             Item = std::result::Result<Message, reqwasm::websocket::WebSocketError>,
@@ -115,7 +115,7 @@ where
         .map_err(|e| err!(broken_pipe, e.to_string()))?;
 
     match msg {
-        Message::Bytes(vec) => F::deserialize(&vec),
+        Message::Bytes(vec) => f.deserialize(&vec),
         Message::Text(_) => err!((invalid_data, "expected binary data, found text")),
     }
 }
