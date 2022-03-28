@@ -10,10 +10,13 @@ use crate::err;
 pub enum Format {
     /// the bincode serialization format
     Bincode = 1,
+    #[cfg(feature = "json_ser")]
     /// the JSON serialization format
     Json = 2,
+    #[cfg(feature = "bson_ser")]
     /// the BSON serialization format
     Bson = 3,
+    #[cfg(feature = "postcard_ser")]
     /// the Postcard serialization format
     Postcard = 4,
 }
@@ -22,8 +25,11 @@ impl SendFormat for Format {
     fn serialize<O: Serialize>(&self, obj: &O) -> crate::Result<Vec<u8>> {
         match self {
             Format::Bincode => Bincode::serialize(&Bincode, obj),
+            #[cfg(feature = "json_ser")]
             Format::Json => Json::serialize(&Json, obj),
+            #[cfg(feature = "bson_ser")]
             Format::Bson => Bson::serialize(&Bson, obj),
+            #[cfg(feature = "postcard_ser")]
             Format::Postcard => Postcard::serialize(&Postcard, obj),
         }
     }
@@ -36,8 +42,11 @@ impl ReadFormat for Format {
     {
         match self {
             Format::Bincode => Bincode::deserialize(&Bincode, bytes),
+            #[cfg(feature = "json_ser")]
             Format::Json => Json::deserialize(&Json, bytes),
+            #[cfg(feature = "bson_ser")]
             Format::Bson => Bson::deserialize(&Bson, bytes),
+            #[cfg(feature = "postcard_ser")]
             Format::Postcard => Postcard::deserialize(&Postcard, bytes),
         }
     }
@@ -45,10 +54,15 @@ impl ReadFormat for Format {
 
 /// bincode serialization format
 pub struct Bincode;
+
+#[cfg(feature = "json_ser")]
 /// JSON serialization format
 pub struct Json;
 /// BSON serialization format
+#[cfg(feature = "bson_ser")]
 pub struct Bson;
+
+#[cfg(feature = "postcard_ser")]
 /// Postcard serialization format
 pub struct Postcard;
 
@@ -92,12 +106,14 @@ impl ReadFormat for Bincode {
     }
 }
 
+#[cfg(feature = "json_ser")]
 impl SendFormat for Json {
     #[inline]
     fn serialize<O: Serialize>(&self, obj: &O) -> crate::Result<Vec<u8>> {
         serde_json::to_vec(obj).or_else(|e| err!((invalid_data, e)))
     }
 }
+#[cfg(feature = "json_ser")]
 impl ReadFormat for Json {
     #[inline]
     fn deserialize<'a, T>(&self, bytes: &'a [u8]) -> crate::Result<T>
@@ -107,12 +123,14 @@ impl ReadFormat for Json {
         serde_json::from_slice(bytes).or_else(|e| err!((invalid_data, e)))
     }
 }
+#[cfg(feature = "bson_ser")]
 impl SendFormat for Bson {
     #[inline]
     fn serialize<O: Serialize>(&self, obj: &O) -> crate::Result<Vec<u8>> {
         bson::ser::to_vec(obj).or_else(|e| err!((invalid_data, e)))
     }
 }
+#[cfg(feature = "bson_ser")]
 impl ReadFormat for Bson {
     #[inline]
     fn deserialize<'a, T>(&self, bytes: &'a [u8]) -> crate::Result<T>
@@ -122,12 +140,14 @@ impl ReadFormat for Bson {
         bson::de::from_slice(bytes).or_else(|e| err!((invalid_data, e)))
     }
 }
+#[cfg(feature = "postcard_ser")]
 impl SendFormat for Postcard {
     #[inline]
     fn serialize<O: Serialize>(&self, obj: &O) -> crate::Result<Vec<u8>> {
         postcard::to_allocvec(obj).or_else(|e| err!((invalid_data, e)))
     }
 }
+#[cfg(feature = "postcard_ser")]
 impl ReadFormat for Postcard {
     #[inline]
     fn deserialize<'a, T>(&self, bytes: &'a [u8]) -> crate::Result<T>

@@ -1,7 +1,7 @@
 use std::pin::Pin;
 
+use futures::StreamExt;
 use futures::{pin_mut, select, stream::FuturesUnordered, FutureExt};
-use futures_lite::StreamExt;
 
 #[cfg(not(target_arch = "wasm32"))]
 use super::Tcp;

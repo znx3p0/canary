@@ -7,6 +7,16 @@ use crate::serialization::{rx, tx, wss_rx, wss_tx, zc};
 use crate::{channel::ReadWrite, err};
 use crate::{channel::WSS, Result};
 
+#[cfg(feature = "static_ser")]
+use crate::serialization::formats::Format;
+#[cfg(feature = "static_ser")]
+use bytes::Buf;
+#[cfg(feature = "static_ser")]
+use smallvec::SmallVec;
+
+#[cfg(feature = "static_ser")]
+use crate::static_ser::{StaticDeserialize, StaticSerialize};
+
 /// Stream wrapper with encryption.
 /// It uses the Noise protocol for encryption
 pub struct Snow<T> {
@@ -18,7 +28,7 @@ const PACKET_LEN: u64 = 65519;
 
 impl<T> Snow<T> {
     fn encrypt_packets(&mut self, buf: &[u8]) -> Result<Vec<u8>> {
-        let mut total = vec![];
+        let mut total = Vec::with_capacity(buf.len() + 16);
 
         for buf in buf.chunks(PACKET_LEN as _) {
             let mut buf = self.encrypt_packet(buf)?;
@@ -168,6 +178,35 @@ impl<T: ReadWrite + Unpin> Snow<T> {
         f.deserialize(&msg)
     }
 
+    /// receive message from stream using a custom deserialization strategy
+    /// ```norun
+    /// async fn service(mut peer: Snow<TcpStream>) -> Result<()> {
+    ///     let num: u64 = peer.rx().await?;
+    ///     Ok(())
+    /// }
+    /// ```
+    #[inline]
+    #[cfg(feature = "static_ser")]
+    pub async fn static_rx<O: StaticDeserialize>(&mut self) -> Result<O> {
+        let size = zc::read_u64(&mut self.stream).await?;
+        // receive message
+        let mut buf = zc::try_vec(size as _)?;
+        self.stream.read_exact(&mut buf).await?;
+
+        let mut msg = vec![];
+
+        for buf in buf.chunks(PACKET_LEN as usize + 16) {
+            let mut inner = vec![0u8; buf.len()];
+            self.transport
+                .read_message(&buf, &mut inner)
+                .or_else(|e| err!((other, e)))?;
+            msg.append(&mut inner);
+        }
+
+        let mut msg = msg.reader();
+        O::deserialize(&mut msg)
+    }
+
     /// send message to stream
     /// ```norun
     /// async fn service(mut peer: Snow<TcpStream>) -> Result<()> {
@@ -180,6 +219,27 @@ impl<T: ReadWrite + Unpin> Snow<T> {
         // serialize or return invalid data error
         let vec = f.serialize(&obj)?;
 
+        let msg = self.encrypt_packets(&vec)?;
+
+        zc::send_u64(&mut self.stream, msg.len() as _).await?;
+        self.stream.write_all(&msg).await?;
+        self.stream.flush().await?;
+        Ok(msg.len())
+    }
+
+    /// send message to stream using a custom serialization strategy
+    /// ```norun
+    /// async fn service(mut peer: Snow<TcpStream>) -> Result<()> {
+    ///     peer.static_tx(123u32).await?;
+    ///     Ok(())
+    /// }
+    /// ```
+    #[inline]
+    #[cfg(feature = "static_ser")]
+    pub async fn static_tx<O: StaticSerialize>(&mut self, obj: O) -> Result<usize> {
+        // serialize or return invalid data error
+        let mut vec = vec![];
+        obj.serialize(&mut vec)?;
         let msg = self.encrypt_packets(&vec)?;
 
         zc::send_u64(&mut self.stream, msg.len() as _).await?;
@@ -308,6 +368,30 @@ impl Snow<WSS> {
     }
 
     #[inline]
+    #[cfg(feature = "static_ser")]
+    /// receive message from stream
+    /// ```norun
+    /// async fn service(mut peer: Snow<TcpStream>) -> Result<()> {
+    ///     let num: u64 = peer.rx().await?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn static_wss_rx<O: StaticDeserialize>(&mut self) -> Result<O> {
+        let buf: Vec<u8> = wss_rx(&mut self.stream, &Format::Bincode).await?;
+
+        let mut msg = vec![];
+
+        for buf in buf.chunks(PACKET_LEN as usize + 16) {
+            let mut inner = vec![0u8; buf.len()];
+            self.transport
+                .read_message(&buf, &mut inner)
+                .or_else(|e| err!((other, e)))?;
+            msg.append(&mut inner);
+        }
+        O::deserialize(&mut msg.reader())
+    }
+
+    #[inline]
     /// send message to stream
     /// ```norun
     /// async fn service(mut peer: Snow<TcpStream>) -> Result<()> {
@@ -323,6 +407,27 @@ impl Snow<WSS> {
         let len = msg.len();
 
         wss_tx(&mut self.stream, msg, f).await?;
+        Ok(len)
+    }
+
+    #[inline]
+    #[cfg(feature = "static_ser")]
+    /// send message to stream
+    /// ```norun
+    /// async fn service(mut peer: Snow<TcpStream>) -> Result<()> {
+    ///     peer.tx(123).await?;
+    ///     Ok(())
+    /// }
+    /// ```
+    pub async fn static_wss_tx<O: StaticSerialize>(&mut self, obj: O) -> Result<usize> {
+        // serialize or return invalid data error
+        let mut vec = SmallVec::<[u8; 8]>::with_capacity(O::LEN);
+        obj.serialize(&mut vec)?;
+
+        let msg = self.encrypt_packets(&vec)?;
+        let len = msg.len();
+
+        wss_tx(&mut self.stream, msg, &Format::Bincode).await?;
         Ok(len)
     }
 }
