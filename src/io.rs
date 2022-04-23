@@ -9,6 +9,8 @@ cfg_if! {
         pub use tokio::io::AsyncReadExt as ReadExt;
         pub use tokio::io::AsyncWrite as Write;
         pub use tokio::io::AsyncWriteExt as WriteExt;
+        pub use tokio::io::WriteHalf;
+        pub use tokio::io::ReadHalf;
 
         pub use tokio::net::ToSocketAddrs;
 

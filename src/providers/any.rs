@@ -97,7 +97,7 @@ impl AnyProvider {
 /// iterator over channels. NOTE: not completely zero-cost
 pub struct ChannelIter {
     listener: AnyProvider,
-    futures: FuturesUnordered<Pin<Box<dyn Future<Output = Result<Channel>> + Send + 'static>>>, // not Sync
+    futures: FuturesUnordered<Pin<Box<dyn Future<Output = Result<Channel>> + Send + 'static>>>, // not Sync or UnwindSafe
 }
 
 impl ChannelIter {

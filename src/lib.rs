@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 #![forbid(missing_docs)]
+#![warn(clippy::all)]
 
 //! # Canary
 //! Canary is a library for making communication through the network easy.
@@ -19,6 +20,7 @@
 
 /// contains encrypted stream
 pub mod async_snow;
+mod bidirectional_channel;
 /// contains channels and constructs associated with them
 pub mod channel;
 /// contains custom error types and result
@@ -28,11 +30,12 @@ mod io;
 pub mod prelude;
 /// contains providers and address
 pub mod providers;
+mod receive_channel;
+mod send_channel;
 /// contains the serialization methods for channels
 /// and formats
 pub mod serialization;
 pub mod type_iter;
-mod send_channel;
 
 pub use channel::Channel;
 pub use err::Error;

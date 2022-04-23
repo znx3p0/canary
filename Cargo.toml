@@ -38,6 +38,9 @@ postcard = { version = "0.7.3", features = [ "alloc" ], optional = true }
 snow = "0.9.0" # api may change
 rand = "0.8.5"
 
+############################
+# providers
+tungstenite = "^0.17.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 tokio = { version = "1.17.0", features = [ "net", "io-util", "time" ] }
