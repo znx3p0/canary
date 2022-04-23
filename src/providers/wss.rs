@@ -18,7 +18,7 @@ use derive_more::{From, Into};
 
 #[derive(From, Into)]
 #[into(owned, ref, ref_mut)]
-/// Exposes routes over WebSockets
+/// Websocket Provider
 pub struct Wss(#[cfg(not(target_arch = "wasm32"))] TcpListener);
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -172,7 +172,7 @@ impl<T: TypeIterT> MainChannel<T> {
     where
         T::Type: Transmit,
         <T as TypeIterT>::Next: TypeIterT,
-        <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send + 'static,
+        <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send,
     {
         self.1.tx(obj).await?;
         Ok(MainChannel(PhantomData, self.1))
@@ -182,7 +182,7 @@ impl<T: TypeIterT> MainChannel<T> {
     where
         T::Type: Receive,
         <T as TypeIterT>::Next: TypeIterT,
-        <T::Type as Receive>::Type: DeserializeOwned + 'static,
+        <T::Type as Receive>::Type: DeserializeOwned,
     {
         let res = self.1.rx::<<T::Type as Receive>::Type>().await?;
         let chan = MainChannel(PhantomData, self.1);
@@ -198,7 +198,7 @@ impl<T: TypeIterT> MainChannel<T> {
     where
         T::Type: Transmit + Str,
         <T as TypeIterT>::Next: TypeIterT,
-        <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send + 'static,
+        <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send,
     {
         self.1.tx(obj).await?;
         Ok(MainChannel(PhantomData, self.1))
@@ -210,7 +210,7 @@ impl<T: TypeIterT> MainChannel<T> {
     where
         T::Type: Transmit + Slice<T::Type> + Serialize,
         <T as TypeIterT>::Next: TypeIterT,
-        <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send + 'static,
+        <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send,
     {
         self.1.tx(obj).await?;
         Ok(MainChannel(PhantomData, self.1))
@@ -236,7 +236,7 @@ impl<T: TypeIterT> PeerChannel<T> {
     where
         T::Type: Receive,
         <T as TypeIterT>::Next: TypeIterT,
-        <<T as TypeIterT>::Type as Receive>::Type: Serialize + Send + 'static,
+        <<T as TypeIterT>::Type as Receive>::Type: Serialize + Send,
     {
         self.1.tx(obj).await?;
         Ok(PeerChannel(PhantomData, self.1))
@@ -263,7 +263,7 @@ impl<T: TypeIterT> PeerChannel<T> {
     where
         T::Type: Transmit + Str,
         <T as TypeIterT>::Next: TypeIterT,
-        <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send + 'static,
+        <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send,
     {
         self.1.tx(obj).await?;
         Ok(PeerChannel(PhantomData, self.1))
@@ -274,7 +274,7 @@ impl<T: TypeIterT> PeerChannel<T> {
     where
         T::Type: Transmit + Slice<T::Type> + Serialize,
         <T as TypeIterT>::Next: TypeIterT,
-        <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send + 'static,
+        <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send,
     {
         self.1.tx(obj).await?;
         Ok(PeerChannel(PhantomData, self.1))

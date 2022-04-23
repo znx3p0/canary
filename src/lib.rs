@@ -1,4 +1,4 @@
-#![cfg_attr(not(feature = "static_ser"), forbid(unsafe_code))] // forbid unsafe unless the static_ser is used
+#![forbid(unsafe_code)]
 #![forbid(missing_docs)]
 
 //! # Canary
@@ -32,10 +32,7 @@ pub mod providers;
 /// and formats
 pub mod serialization;
 pub mod type_iter;
-
-/// contains the static serialization format
-#[cfg(feature = "static_ser")]
-pub mod static_ser;
+mod send_channel;
 
 pub use channel::Channel;
 pub use err::Error;

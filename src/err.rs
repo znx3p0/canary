@@ -160,11 +160,12 @@ use std::{
 };
 
 /// a result type equivalent to std::io::Result, but implements `Serialize` and `Deserialize`
-pub type Result<T> = ::std::result::Result<T, Error>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// a result type equivalent to std::io::Error, but implements `Serialize` and `Deserialize`
 pub struct Error(std::io::Error);
 impl Error {
+    #[inline]
     /// construct a new Error type from a std::io::Error
     pub fn new(e: std::io::Error) -> Self {
         Error(e)
@@ -172,32 +173,38 @@ impl Error {
 }
 
 impl From<std::io::Error> for Error {
+    #[inline]
     fn from(error: std::io::Error) -> Self {
         Error(error)
     }
 }
 
 impl Display for Error {
+    #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         <std::io::Error as Display>::fmt(&self.0, f)
     }
 }
 impl Debug for Error {
+    #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         <std::io::Error as Debug>::fmt(&self.0, f)
     }
 }
 
 impl std::error::Error for Error {
+    #[inline]
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         self.0.source()
     }
 
+    #[inline]
     fn description(&self) -> &str {
         #[allow(deprecated)]
         self.0.description()
     }
 
+    #[inline]
     fn cause(&self) -> Option<&dyn std::error::Error> {
         #[allow(deprecated)]
         self.0.cause()
@@ -205,6 +212,7 @@ impl std::error::Error for Error {
 }
 
 impl Serialize for Error {
+    #[inline]
     fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

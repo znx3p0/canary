@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::pin::Pin;
 
 use futures::StreamExt;
@@ -96,7 +97,7 @@ impl AnyProvider {
 /// iterator over channels. NOTE: not completely zero-cost
 pub struct ChannelIter {
     listener: AnyProvider,
-    futures: FuturesUnordered<Pin<Box<dyn std::future::Future<Output = Result<Channel>>>>>,
+    futures: FuturesUnordered<Pin<Box<dyn Future<Output = Result<Channel>> + Send + 'static>>>, // not Sync
 }
 
 impl ChannelIter {
@@ -120,7 +121,7 @@ impl ChannelIter {
                         self.futures.push(Box::pin(fut));
                         continue;
                     } else {
-                        return Ok(hs.raw());
+                        Ok(hs.raw())
                     }
                 },
             };

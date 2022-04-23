@@ -14,10 +14,6 @@ use crate::io::UnixStream;
 
 use crate::serialization::formats::Format;
 use crate::serialization::{rx, tx, wss_rx, wss_tx};
-#[cfg(feature = "static_ser")]
-use crate::serialization::{static_rx, static_tx, static_wss_rx, static_wss_tx};
-#[cfg(feature = "static_ser")]
-use crate::static_ser::{StaticDeserialize, StaticSerialize};
 use crate::type_iter::{MainChannel, PeerChannel, Pipeline};
 use crate::Result;
 
@@ -47,6 +43,7 @@ pub struct Channel {
 }
 
 impl<T: Into<InnerChannel>> From<T> for Channel {
+    #[inline]
     fn from(inner: T) -> Self {
         let inner: InnerChannel = inner.into();
         Channel {
@@ -85,11 +82,11 @@ enum InnerChannel {
     InsecureAny(Box<dyn ReadWrite>),
 }
 
-/// wrapper trait to allow any type that implements `Read`, `Write`, `Send`, `Sync` and `'static`
+/// wrapper trait to allow any type that implements `Read`, `Write`, `Send` and `Sync`
 /// to use `Channel`
-pub trait ReadWrite: Read + Write + Unpin + Send + Sync + 'static {}
+pub trait ReadWrite: Read + Write + Unpin + Send + Sync {}
 
-impl<T: Read + Write + 'static + Unpin + Send + Sync> ReadWrite for T {}
+impl<T: Read + Write + Unpin + Send + Sync> ReadWrite for T {}
 
 impl Channel {
     #[cfg(not(target_arch = "wasm32"))]
@@ -143,40 +140,6 @@ impl Channel {
         }
     }
 
-    /// WARNING: If you don't know what you're doing, use the `.send()` method instead.
-    /// Using this method can cause weird problems that can be REALLY hard to debug.
-    /// It also doesn't support sending dynamically sized types (in the context of wire size)
-    /// such as `&str` or `&[T]`
-    ///
-    /// send message to stream using a custom serialization strategy. it should be received with `.static_receive()`
-    /// ```norun
-    /// async fn service(mut peer: Channel) -> Result<()> {
-    ///     peer.static_send(123).await?;
-    ///     Ok(())
-    /// }
-    /// ```
-    #[cfg(feature = "static_ser")]
-    #[inline]
-    pub async fn static_send<O: StaticSerialize>(&mut self, obj: O) -> Result<usize> {
-        match &mut self.inner {
-            #[cfg(not(target_arch = "wasm32"))]
-            InnerChannel::Tcp(st) => st.static_tx(obj).await,
-            InnerChannel::EncryptedAny(st) => st.static_tx(obj).await,
-            InnerChannel::InsecureAny(st) => static_tx(st, obj).await,
-            #[cfg(not(target_arch = "wasm32"))]
-            InnerChannel::InsecureTcp(st) => static_tx(st, obj).await,
-
-            #[cfg(unix)]
-            #[cfg(not(target_arch = "wasm32"))]
-            InnerChannel::Unix(st) => st.static_tx(obj).await,
-            #[cfg(unix)]
-            #[cfg(not(target_arch = "wasm32"))]
-            InnerChannel::InsecureUnix(st) => static_tx(st, obj).await,
-
-            InnerChannel::WSS(st) => st.static_wss_tx(obj).await,
-            InnerChannel::InsecureWSS(st) => static_wss_tx(st, obj).await,
-        }
-    }
     /// alias to the `.send` method
     /// ```norun
     /// async fn service(mut peer: Channel) -> Result<()> {
@@ -216,35 +179,6 @@ impl Channel {
         }
     }
 
-    /// receive message from stream
-    /// ```norun
-    /// async fn service(mut peer: Channel) -> Result<()> {
-    ///     let num: u64 = peer.receive().await?;
-    ///     Ok(())
-    /// }
-    /// ```
-    #[cfg(feature = "static_ser")]
-    #[inline]
-    pub async fn static_receive<O: StaticDeserialize>(&mut self) -> Result<O> {
-        match &mut self.inner {
-            #[cfg(not(target_arch = "wasm32"))]
-            InnerChannel::Tcp(st) => st.static_rx().await,
-            InnerChannel::EncryptedAny(st) => st.static_rx().await,
-            InnerChannel::InsecureAny(st) => static_rx(st).await,
-            #[cfg(not(target_arch = "wasm32"))]
-            InnerChannel::InsecureTcp(st) => static_rx(st).await,
-
-            #[cfg(unix)]
-            #[cfg(not(target_arch = "wasm32"))]
-            InnerChannel::Unix(st) => st.static_rx().await,
-            #[cfg(unix)]
-            #[cfg(not(target_arch = "wasm32"))]
-            InnerChannel::InsecureUnix(st) => static_rx(st).await,
-
-            InnerChannel::WSS(st) => st.static_wss_rx().await,
-            InnerChannel::InsecureWSS(st) => static_wss_rx(st).await,
-        }
-    }
     /// alias of the `.receive` method.
     /// Receive message from stream
     /// ```norun

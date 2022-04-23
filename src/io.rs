@@ -4,7 +4,7 @@ cfg_if! {
     if #[cfg(not(target_arch = "wasm32"))] {
         #[cfg(unix)]
         pub use tokio::net::{UnixListener, UnixStream};
-        pub use tokio::net::{TcpListener, TcpStream};
+        pub use tokio::net::{TcpListener, TcpStream, UdpSocket};
         pub use tokio::io::AsyncRead as Read;
         pub use tokio::io::AsyncReadExt as ReadExt;
         pub use tokio::io::AsyncWrite as Write;
