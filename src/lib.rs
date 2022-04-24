@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-#![forbid(missing_docs)]
+// #![forbid(missing_docs)]
 #![warn(clippy::all)]
 
 //! # Canary
@@ -20,7 +20,6 @@
 
 /// contains encrypted stream
 pub mod async_snow;
-mod bidirectional_channel;
 /// contains channels and constructs associated with them
 pub mod channel;
 /// contains custom error types and result
@@ -30,8 +29,7 @@ mod io;
 pub mod prelude;
 /// contains providers and address
 pub mod providers;
-mod receive_channel;
-mod send_channel;
+
 /// contains the serialization methods for channels
 /// and formats
 pub mod serialization;

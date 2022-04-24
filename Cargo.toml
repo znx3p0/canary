@@ -4,7 +4,7 @@ version = "0.2.4"
 edition = "2021"
 
 repository = "https://github.com/znx3p0/canary"
-keywords = [ "rpc", "async", "network", "microservices", "api" ]
+keywords = ["rpc", "async", "network", "microservices", "api"]
 description = "provides ergonomic abstractions for network communication and more"
 license = "MIT"
 
@@ -19,11 +19,12 @@ futures = "0.3.21"
 async-trait = "0.1.53"
 tracing = "0.1.33"
 cfg-if = "1.0.0"
-compact_str = { version = "0.3.2", features = [ "serde" ] }
+compact_str = { version = "0.3.2", features = ["serde"] }
 
 ############################
 # serde
-serde = { version = "1.0.136", features = [ "derive" ] }
+serde = { version = "1.0.136", features = ["derive"] }
+
 serde_repr = "0.1.7"
 
 ############################
@@ -31,7 +32,7 @@ serde_repr = "0.1.7"
 bincode = { version = "1.3.3" }
 serde_json = { version = "1.0.79", optional = true }
 bson = { version = "2.1.0", optional = true }
-postcard = { version = "0.7.3", features = [ "alloc" ], optional = true }
+postcard = { version = "0.7.3", features = ["alloc"], optional = true }
 
 ############################
 # encryption
@@ -43,29 +44,30 @@ rand = "0.8.5"
 tungstenite = "^0.17.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "1.17.0", features = [ "net", "io-util", "time" ] }
+tokio = { version = "1.17.0", features = ["net", "io-util", "time"] }
 
 ############################
 # providers
-quinn = { version = "0.8.2" } # quic support
+quinn = { version = "0.8.2" }       # quic support
 quinn-proto = { version = "0.8.2" } # quic support
 
-async-tungstenite = { version = "0.17.2", features = [ "tokio-runtime" ] } # websocket support
+async-tungstenite = { version = "0.17.2", features = [
+    "tokio-runtime",
+] } # websocket support
 
 # ring = "0.16.20"
 
 # commented atm, but support will be added later
 # btleplug = "0.9.2" # bluetooth provider
 # webrtc = "0.4.0" # webrtc provider, used for peer to peer communications
-############################
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 reqwasm = { version = "0.5.0" }
-getrandom = { version = "~0.2.6", features = [ "js" ] }
+getrandom = { version = "~0.2.6", features = ["js"] }
 uuid = { version = "~1.0.0" }
 async-timer = "0.7.4"
 
 [features]
-json_ser = [ "serde_json" ]
-bson_ser = [ "bson" ]
-postcard_ser = [ "postcard" ]
+json_ser = ["serde_json"]
+bson_ser = ["bson"]
+postcard_ser = ["postcard"]

@@ -89,6 +89,7 @@ where
         .await
         .ok_or(err!(broken_pipe, "websocket connection broke"))?
         .map_err(|e| err!(broken_pipe, e))?;
+
     match msg {
         Message::Binary(vec) => f.deserialize(&vec),
         Message::Text(_) => err!((invalid_data, "expected binary message, found text message")),

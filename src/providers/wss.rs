@@ -5,7 +5,7 @@ use crate::err;
 use crate::Channel;
 use cfg_if::cfg_if;
 
-use crate::channel::WSS;
+use crate::channel::Wss;
 
 cfg_if! {
     if #[cfg(not(target_arch = "wasm32"))] {
@@ -19,15 +19,15 @@ use derive_more::{From, Into};
 #[derive(From, Into)]
 #[into(owned, ref, ref_mut)]
 /// Websocket Provider
-pub struct Wss(#[cfg(not(target_arch = "wasm32"))] TcpListener);
+pub struct WebSocket(#[cfg(not(target_arch = "wasm32"))] TcpListener);
 
 #[cfg(not(target_arch = "wasm32"))]
-impl Wss {
+impl WebSocket {
     #[inline]
     /// bind the global route on the given address
     pub async fn bind(addrs: impl ToSocketAddrs) -> Result<Self> {
         let listener = TcpListener::bind(addrs).await?;
-        Ok(Wss(listener))
+        Ok(WebSocket(listener))
     }
     #[inline]
     /// get the next channel
@@ -51,7 +51,7 @@ impl Wss {
         addrs: impl ToSocketAddrs + std::fmt::Debug,
         retries: u32,
         time_to_retry: u64,
-    ) -> Result<WSS> {
+    ) -> Result<Wss> {
         let mut attempt = 0;
         let addrs = tokio::net::lookup_host(&addrs)
             .await
@@ -112,7 +112,7 @@ impl Wss {
 impl Wss {
     #[inline]
     /// connect to the following address without discovery
-    pub async fn inner_connect(addrs: &str, retries: u32, time_to_retry: u64) -> Result<WSS> {
+    pub async fn inner_connect(addrs: &str, retries: u32, time_to_retry: u64) -> Result<Wss> {
         let mut attempt = 0;
         let stream = loop {
             match reqwasm::websocket::futures::WebSocket::open(&format!("ws://{}", addrs)) {

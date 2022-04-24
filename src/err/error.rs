@@ -15,9 +15,6 @@
 /// ```
 #[macro_export]
 macro_rules! err {
-    (($t: ident, $s: expr)) => {
-        Err($crate::err!($t, $s))
-    };
     (not_found, $e: expr) => {
         $crate::err::Error::new(std::io::Error::new(std::io::ErrorKind::NotFound, $e))
     };
@@ -144,8 +141,14 @@ macro_rules! err {
     ($p: ident, $e: expr) => {
         $crate::err::Error::new(std::io::Error::new(std::io::ErrorKind::$p, $e))
     };
-    (($e: expr)) => {
-        Err($crate::err!(other, $e))
+
+    (($($t: tt)*)) => {
+        Err($crate::err!($($t)*))
+    };
+    (@$i: ident) => {
+        {
+            |e| $crate::err!($i, e)
+        }
     };
     ($e: expr) => {
         $crate::err!(other, $e)
@@ -158,9 +161,6 @@ use std::{
     fmt::{Debug, Display},
     io::ErrorKind as StdErrorKind,
 };
-
-/// a result type equivalent to std::io::Result, but implements `Serialize` and `Deserialize`
-pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 /// a result type equivalent to std::io::Error, but implements `Serialize` and `Deserialize`
 pub struct Error(std::io::Error);

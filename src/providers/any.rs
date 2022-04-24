@@ -12,7 +12,7 @@ use crate::channel::Handshake;
 use crate::Channel;
 use crate::Result;
 
-use super::Wss;
+use super::WebSocket;
 
 /// abstraction over any provider
 pub enum AnyProvider {
@@ -29,9 +29,9 @@ pub enum AnyProvider {
     /// encapsulates the unix provider without any encryption
     InsecureUnix(Unix),
     /// encapsulates the websocket provider
-    Wss(Wss),
+    Wss(WebSocket),
     /// encapsulates the websocket provider without any encryption
-    InsecureWss(Wss),
+    InsecureWss(WebSocket),
 }
 
 impl AnyProvider {

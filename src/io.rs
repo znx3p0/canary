@@ -11,6 +11,7 @@ cfg_if! {
         pub use tokio::io::AsyncWriteExt as WriteExt;
         pub use tokio::io::WriteHalf;
         pub use tokio::io::ReadHalf;
+        pub use tokio::io::split;
 
         pub use tokio::net::ToSocketAddrs;
 

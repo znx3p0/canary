@@ -1,5 +1,4 @@
-//! Type juggling. Do not enter unless you want a headache, or if you want to understand how this works.
-//! I won't bother documenting this.
+//! Here be dragons
 
 use std::marker::PhantomData;
 
@@ -17,10 +16,10 @@ macro_rules! pipe {
     (receive $t: ty) => {
         $crate::type_iter::TypeIter<$crate::type_iter::Rx<$t>>
     };
-    (tx $t: ty) => {
+    (send $t: ty) => {
         $crate::type_iter::TypeIter<$crate::type_iter::Tx<$t>>
     };
-    (rx $t: ty) => {
+    (receive $t: ty) => {
         $crate::type_iter::TypeIter<$crate::type_iter::Rx<$t>>
     };
 
@@ -30,36 +29,36 @@ macro_rules! pipe {
     (receive $t: ty, $($lit: ident $s: ty),*) => {
         $crate::type_iter::TypeIter<$crate::type_iter::Rx<$t>, $crate::pipe!($($lit $s),*)>
     };
-    (tx $t: ty, $($lit: ident $s: ty),*) => {
+    (send $t: ty, $($lit: ident $s: ty),*) => {
         $crate::type_iter::TypeIter<$crate::type_iter::Tx<$t>, $crate::pipe!($($lit $s),*)>
     };
-    (rx $t: ty, $($lit: ident $s: ty),*) => {
+    (receive $t: ty, $($lit: ident $s: ty),*) => {
         $crate::type_iter::TypeIter<$crate::type_iter::Rx<$t>, $crate::pipe!($($lit $s),*)>
     };
 }
 
-/// shorten tx calls
+/// shorten send calls
 /// ```no_run
-/// tx!(pipe, 2); // this is equivalent to this
-/// let pipe = pipe.tx(2).await?;
+/// send!(pipe, 2); // this is equivalent to this
+/// let pipe = pipe.send(2).await?;
 /// ```
 #[macro_export]
-macro_rules! tx {
+macro_rules! send {
     ($i: ident, $e: expr) => {
         #[allow(unused_variables)] // disable unused warning
-        let $i = $i.tx($e).await?;
+        let $i = $i.send($e).await?;
     };
 }
 
-/// shorten rx calls
+/// shorten receive calls
 /// ```no_run
-/// rx!(res, pipe); // this is equivalent to this
-/// let (res, pipe) = pipe.rx().await?;
+/// receive!(res, pipe); // this is equivalent to this
+/// let (res, pipe) = pipe.receive().await?;
 /// ```
 #[macro_export]
-macro_rules! rx {
+macro_rules! receive {
     ($i: ident, $e: ident) => {
-        let ($i, $e) = $e.rx().await?;
+        let ($i, $e) = $e.receive().await?;
         #[allow(unused_variables)] // disable unused warning
         let $e = $e;
     };
@@ -113,12 +112,12 @@ impl<T, L: TypeIterT> TypeIterT for TypeIter<T, L> {
     type Type = T;
 }
 
-/// trait that represents send or tx in pipelines
+/// trait that represents send or send in pipelines
 pub trait Transmit {
     /// type that can be transmitted
     type Type;
 }
-/// trait that represents receive or rx in pipelines
+/// trait that represents receive or receive in pipelines
 pub trait Receive {
     /// type that can be received
     type Type;
@@ -165,7 +164,7 @@ impl<T: TypeIterT> MainChannel<T> {
         MainChannel(PhantomData, chan)
     }
     /// send an object through the stream and iterate to the next type
-    pub async fn tx(
+    pub async fn send(
         mut self,
         obj: <T::Type as Transmit>::Type,
     ) -> crate::Result<MainChannel<T::Next>>
@@ -174,17 +173,17 @@ impl<T: TypeIterT> MainChannel<T> {
         <T as TypeIterT>::Next: TypeIterT,
         <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send,
     {
-        self.1.tx(obj).await?;
+        self.1.send(obj).await?;
         Ok(MainChannel(PhantomData, self.1))
     }
     /// receive an object from the stream and iterate to the next type
-    pub async fn rx(mut self) -> crate::Result<(<T::Type as Receive>::Type, MainChannel<T::Next>)>
+    pub async fn receive(mut self) -> crate::Result<(<T::Type as Receive>::Type, MainChannel<T::Next>)>
     where
         T::Type: Receive,
         <T as TypeIterT>::Next: TypeIterT,
         <T::Type as Receive>::Type: DeserializeOwned,
     {
-        let res = self.1.rx::<<T::Type as Receive>::Type>().await?;
+        let res = self.1.receive::<<T::Type as Receive>::Type>().await?;
         let chan = MainChannel(PhantomData, self.1);
         Ok((res, chan))
     }
@@ -194,25 +193,25 @@ impl<T: TypeIterT> MainChannel<T> {
     }
     /// send a str through the stream, this is an optimization done for pipelines receiving String
     /// to make sure an unnecessary allocation is not made
-    pub async fn tx_str(mut self, obj: &str) -> crate::Result<MainChannel<T::Next>>
+    pub async fn send_str(mut self, obj: &str) -> crate::Result<MainChannel<T::Next>>
     where
         T::Type: Transmit + Str,
         <T as TypeIterT>::Next: TypeIterT,
         <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send,
     {
-        self.1.tx(obj).await?;
+        self.1.send(obj).await?;
         Ok(MainChannel(PhantomData, self.1))
     }
 
     /// send a slice through the stream, this is an optimization done for pipelines receiving Vec<T>
     /// to make sure an unnecessary allocation is not made
-    pub async fn tx_slice(mut self, obj: &[T::Type]) -> crate::Result<MainChannel<T::Next>>
+    pub async fn send_slice(mut self, obj: &[T::Type]) -> crate::Result<MainChannel<T::Next>>
     where
         T::Type: Transmit + Slice<T::Type> + Serialize,
         <T as TypeIterT>::Next: TypeIterT,
         <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send,
     {
-        self.1.tx(obj).await?;
+        self.1.send(obj).await?;
         Ok(MainChannel(PhantomData, self.1))
     }
 }
@@ -229,7 +228,7 @@ impl<T: TypeIterT> PeerChannel<T> {
         PeerChannel(PhantomData, chan)
     }
     /// send an object through the stream and iterate to the next type
-    pub async fn tx(
+    pub async fn send(
         mut self,
         obj: <T::Type as Receive>::Type,
     ) -> crate::Result<PeerChannel<T::Next>>
@@ -238,18 +237,18 @@ impl<T: TypeIterT> PeerChannel<T> {
         <T as TypeIterT>::Next: TypeIterT,
         <<T as TypeIterT>::Type as Receive>::Type: Serialize + Send,
     {
-        self.1.tx(obj).await?;
+        self.1.send(obj).await?;
         Ok(PeerChannel(PhantomData, self.1))
     }
 
     /// receive an object from the stream and iterate to the next type
-    pub async fn rx(mut self) -> crate::Result<(<T::Type as Transmit>::Type, PeerChannel<T::Next>)>
+    pub async fn receive(mut self) -> crate::Result<(<T::Type as Transmit>::Type, PeerChannel<T::Next>)>
     where
         T::Type: Transmit,
         <T as TypeIterT>::Next: TypeIterT,
         <T::Type as Transmit>::Type: DeserializeOwned + 'static,
     {
-        let res = self.1.rx::<<T::Type as Transmit>::Type>().await?;
+        let res = self.1.receive::<<T::Type as Transmit>::Type>().await?;
         let chan = PeerChannel(PhantomData, self.1);
         Ok((res, chan))
     }
@@ -259,24 +258,24 @@ impl<T: TypeIterT> PeerChannel<T> {
     }
     /// send a str through the stream, this is an optimization done for pipelines receiving String
     /// to make sure an unnecessary allocation is not made
-    pub async fn tx_str(mut self, obj: &str) -> crate::Result<PeerChannel<T::Next>>
+    pub async fn send_str(mut self, obj: &str) -> crate::Result<PeerChannel<T::Next>>
     where
         T::Type: Transmit + Str,
         <T as TypeIterT>::Next: TypeIterT,
         <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send,
     {
-        self.1.tx(obj).await?;
+        self.1.send(obj).await?;
         Ok(PeerChannel(PhantomData, self.1))
     }
     /// send a slice through the stream, this is an optimization done for pipelines receiving Vec<T>
     /// to make sure an unnecessary allocation is not made
-    pub async fn tx_slice(mut self, obj: &[T::Type]) -> crate::Result<PeerChannel<T::Next>>
+    pub async fn send_slice(mut self, obj: &[T::Type]) -> crate::Result<PeerChannel<T::Next>>
     where
         T::Type: Transmit + Slice<T::Type> + Serialize,
         <T as TypeIterT>::Next: TypeIterT,
         <<T as TypeIterT>::Type as Transmit>::Type: Serialize + Send,
     {
-        self.1.tx(obj).await?;
+        self.1.send(obj).await?;
         Ok(PeerChannel(PhantomData, self.1))
     }
 }

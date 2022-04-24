@@ -89,7 +89,7 @@ impl SendFormat for Bincode {
         let obj = bincode::DefaultOptions::new()
             .allow_trailing_bytes()
             .serialize(obj)
-            .or_else(|e| err!((invalid_data, e)))?;
+            .map_err(|e| err!(invalid_data, e))?;
         Ok(obj)
     }
 }
@@ -102,7 +102,7 @@ impl ReadFormat for Bincode {
         bincode::DefaultOptions::new()
             .allow_trailing_bytes()
             .deserialize(bytes)
-            .or_else(|e| err!((invalid_data, e)))
+            .map_err(|e| err!(invalid_data, e))
     }
 }
 
@@ -110,7 +110,7 @@ impl ReadFormat for Bincode {
 impl SendFormat for Json {
     #[inline]
     fn serialize<O: Serialize>(&self, obj: &O) -> crate::Result<Vec<u8>> {
-        serde_json::to_vec(obj).or_else(|e| err!((invalid_data, e)))
+        serde_json::to_vec(obj).map_err(|e| err!((invalid_data, e)))
     }
 }
 #[cfg(feature = "json_ser")]
@@ -120,14 +120,14 @@ impl ReadFormat for Json {
     where
         T: serde::de::Deserialize<'a>,
     {
-        serde_json::from_slice(bytes).or_else(|e| err!((invalid_data, e)))
+        serde_json::from_slice(bytes).map_err(|e| err!((invalid_data, e)))
     }
 }
 #[cfg(feature = "bson_ser")]
 impl SendFormat for Bson {
     #[inline]
     fn serialize<O: Serialize>(&self, obj: &O) -> crate::Result<Vec<u8>> {
-        bson::ser::to_vec(obj).or_else(|e| err!((invalid_data, e)))
+        bson::ser::to_vec(obj).map_err(|e| err!((invalid_data, e)))
     }
 }
 #[cfg(feature = "bson_ser")]
@@ -137,14 +137,14 @@ impl ReadFormat for Bson {
     where
         T: serde::de::Deserialize<'a>,
     {
-        bson::de::from_slice(bytes).or_else(|e| err!((invalid_data, e)))
+        bson::de::from_slice(bytes).map_err(|e| err!((invalid_data, e)))
     }
 }
 #[cfg(feature = "postcard_ser")]
 impl SendFormat for Postcard {
     #[inline]
     fn serialize<O: Serialize>(&self, obj: &O) -> crate::Result<Vec<u8>> {
-        postcard::to_allocvec(obj).or_else(|e| err!((invalid_data, e)))
+        postcard::to_allocvec(obj).map_err(|e| err!((invalid_data, e)))
     }
 }
 #[cfg(feature = "postcard_ser")]
@@ -154,6 +154,6 @@ impl ReadFormat for Postcard {
     where
         T: serde::de::Deserialize<'a>,
     {
-        postcard::from_bytes(bytes).or_else(|e| err!((invalid_data, e)))
+        postcard::from_bytes(bytes).map_err(|e| err!((invalid_data, e)))
     }
 }

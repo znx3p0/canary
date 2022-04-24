@@ -11,10 +11,9 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use crate::providers::Wss;
-
 #[cfg(not(target_arch = "wasm32"))]
 use super::AnyProvider;
+use super::WebSocket;
 
 cfg_if! {
     if #[cfg(not(target_arch = "wasm32"))] {
@@ -52,10 +51,10 @@ pub enum Addr {
     InsecureWss(Arc<CompactStr>),
 }
 
-impl Into<String> for &Addr {
+impl From<&Addr> for String {
     #[inline]
-    fn into(self) -> String {
-        format!("{}", self)
+    fn from(addr: &Addr) -> String {
+        format!("{}", addr)
     }
 }
 
@@ -184,8 +183,8 @@ impl Addr {
                     Addr::InsecureTcp(addrs) => Ok(Tcp::connect(addrs.as_ref()).await?.raw()),
                     Addr::Unix(addrs) => Unix::connect(addrs.as_ref()).await?.encrypted().await,
                     Addr::InsecureUnix(addrs) => Ok(Unix::connect(addrs.as_ref()).await?.raw()),
-                    Addr::Wss(addrs) => Wss::connect(addrs.as_str()).await?.encrypted().await,
-                    Addr::InsecureWss(addrs) => Ok(Wss::connect(addrs.as_str()).await?.raw()),
+                    Addr::Wss(addrs) => WebSocket::connect(addrs.as_str()).await?.encrypted().await,
+                    Addr::InsecureWss(addrs) => Ok(WebSocket::connect(addrs.as_str()).await?.raw()),
                 }
             } else {
                 match self {
@@ -214,8 +213,10 @@ impl Addr {
             Addr::Unix(addrs) => AnyProvider::Unix(Unix::bind(&**addrs).await?),
             #[cfg(unix)]
             Addr::InsecureUnix(addrs) => AnyProvider::InsecureUnix(Unix::bind(&**addrs).await?),
-            Addr::Wss(addrs) => AnyProvider::Wss(Wss::bind(addrs.as_str()).await?),
-            Addr::InsecureWss(addrs) => AnyProvider::InsecureWss(Wss::bind(addrs.as_str()).await?),
+            Addr::Wss(addrs) => AnyProvider::Wss(WebSocket::bind(addrs.as_str()).await?),
+            Addr::InsecureWss(addrs) => {
+                AnyProvider::InsecureWss(WebSocket::bind(addrs.as_str()).await?)
+            }
 
             #[cfg(not(unix))]
             Addr::Unix(_) => err!((
@@ -241,7 +242,7 @@ impl FromStr for Addr {
     /// unix@folder/address.sock
     fn from_str(addr: &str) -> Result<Self> {
         let (protocol, addr) = addr
-            .rsplit_once("@")
+            .rsplit_once('@')
             .ok_or(err!(invalid_input, "malformed address"))?;
         let address_ty = protocol.parse::<AddressType>()?;
         Ok(match address_ty {
