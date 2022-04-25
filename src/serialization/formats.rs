@@ -4,7 +4,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::err;
 
-#[derive(Serialize_repr, Deserialize_repr)]
+#[derive(Serialize_repr, Deserialize_repr, Clone)]
 #[repr(u8)]
 /// formats allowed for channels
 pub enum Format {
@@ -52,28 +52,33 @@ impl ReadFormat for Format {
     }
 }
 
+#[derive(Clone)]
 /// bincode serialization format
 pub struct Bincode;
 
 #[cfg(feature = "json_ser")]
+#[derive(Clone)]
 /// JSON serialization format
 pub struct Json;
+
 /// BSON serialization format
 #[cfg(feature = "bson_ser")]
+#[derive(Clone)]
 pub struct Bson;
 
 #[cfg(feature = "postcard_ser")]
+#[derive(Clone)]
 /// Postcard serialization format
 pub struct Postcard;
 
 /// trait that represents the serialize side of a format
-pub trait SendFormat {
+pub trait SendFormat: Clone + 'static {
     /// serialize object in this format
     fn serialize<O: Serialize>(&self, obj: &O) -> crate::Result<Vec<u8>>;
 }
 
 /// trait that represents the deserialize side of a format
-pub trait ReadFormat {
+pub trait ReadFormat: Clone + 'static {
     /// deserialize object in this format
     fn deserialize<'a, T>(&self, bytes: &'a [u8]) -> crate::Result<T>
     where
@@ -89,7 +94,7 @@ impl SendFormat for Bincode {
         let obj = bincode::DefaultOptions::new()
             .allow_trailing_bytes()
             .serialize(obj)
-            .map_err(|e| err!(invalid_data, e))?;
+            .map_err(err!(@invalid_data))?;
         Ok(obj)
     }
 }
@@ -102,7 +107,7 @@ impl ReadFormat for Bincode {
         bincode::DefaultOptions::new()
             .allow_trailing_bytes()
             .deserialize(bytes)
-            .map_err(|e| err!(invalid_data, e))
+            .map_err(err!(@invalid_data))
     }
 }
 

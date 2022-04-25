@@ -1,62 +1,95 @@
 use crate::{
     channel::Wss,
+    err,
     serialization::formats::{Format, SendFormat},
     Result,
 };
 use derive_more::From;
-use futures::stream::SplitSink;
+use futures::{stream::SplitSink, Sink, SinkExt};
 use serde::Serialize;
 use tungstenite::Message;
 
+use crate::async_snow::Snow;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::io::{TcpStream, UnixStream, WriteHalf};
 
-use crate::async_snow::Snow;
-
-// You may notice that most types are boxed. This is to avoid unnecessary padding since
-// inner types can vary from 4 bytes all the way to 176 bytes.
-// If types weren't boxed and you were using InsecuireTcp, you would waste 160 bytes per send channel.
+///
 #[derive(From)]
-pub enum UnformattedSendChannel {
+pub enum RefUnformattedSendChannel<'a> {
     #[cfg(not(target_arch = "wasm32"))]
-    /// encrypted chan backend
-    Tcp(Box<Snow<WriteHalf<TcpStream>>>),
-    #[cfg(not(target_arch = "wasm32"))]
-    /// unencrypted tcp backend
-    InsecureTcp(WriteHalf<TcpStream>),   // doesn't need box since it's less or equal to 16 bytes
-
+    /// tcp backend
+    Tcp(&'a mut WriteHalf<TcpStream>),
     #[cfg(unix)]
-    /// encrypted unix backend
-    Unix(Box<Snow<WriteHalf<UnixStream>>>),
-    #[cfg(unix)]
-    /// unencrypted unix backend
-    InsecureUnix(WriteHalf<UnixStream>), // doesn't need box since it's less or equal to 16 bytes
-
-    /// encrypted wss backend
-    Wss(Box<Snow<SplitSink<Wss, Message>>>),
-    /// unencrypted wss backend
-    InsecureWSS(Box<SplitSink<Wss, Message>>),
+    /// unix backend
+    Unix(&'a mut WriteHalf<UnixStream>),
+    /// wss backend
+    WSS(&'a mut SplitSink<Wss, Message>),
+    /// encrypted backend
+    Encrypted(&'a mut Box<(Snow, UnformattedSendChannel)>),
 }
 
-impl UnformattedSendChannel {
+impl<'a> From<&'a mut UnformattedSendChannel> for RefUnformattedSendChannel<'a> {
+    #[inline]
+    fn from(chan: &'a mut UnformattedSendChannel) -> Self {
+        match chan {
+            UnformattedSendChannel::Tcp(ref mut chan) => chan.into(),
+            UnformattedSendChannel::Unix(ref mut chan) => chan.into(),
+            UnformattedSendChannel::WSS(ref mut chan) => chan.into(),
+            UnformattedSendChannel::Encrypted(ref mut chan) => chan.into(),
+        }
+    }
+}
+
+impl<'a> RefUnformattedSendChannel<'a> {
     pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, f: &F) -> Result<usize> {
+        use crate::serialization::tx;
         match self {
-            #[cfg(not(target_arch = "wasm32"))]
-            UnformattedSendChannel::Tcp(st) => st.tx(obj, f).await,
-            #[cfg(not(target_arch = "wasm32"))]
-            UnformattedSendChannel::InsecureTcp(st) => crate::serialization::tx(st, obj, f).await,
-            #[cfg(unix)]
-            UnformattedSendChannel::Unix(st) => st.tx(obj, f).await,
-            #[cfg(unix)]
-            UnformattedSendChannel::InsecureUnix(st) => crate::serialization::tx(st, obj, f).await,
-            UnformattedSendChannel::Wss(st) => st.wss_tx(obj, f).await,
-            UnformattedSendChannel::InsecureWSS(st) => {
-                crate::serialization::wss_tx(st, obj, f).await
+            RefUnformattedSendChannel::Tcp(st) => tx(st, obj, f).await,
+            RefUnformattedSendChannel::Unix(st) => tx(st, obj, f).await,
+            RefUnformattedSendChannel::Encrypted(st) => {
+                let snow = &st.0;
+                let chan = &mut st.1;
+                let buf = f.serialize(&obj).map_err(err!(@invalid_data))?;
+                let obj = snow.encrypt_packets(&buf)?;
+                // chan.send(obj, f).await
+                todo!()
+            }
+            RefUnformattedSendChannel::WSS(st) => {
+                let buf = f.serialize(&obj).map_err(err!(@invalid_data))?;
+                let len = buf.len();
+                let item = Message::Binary(buf);
+                st.send(item).await.map_err(err!(@other));
+                Ok(len)
             }
         }
     }
 }
 
+#[derive(From)]
+pub enum UnformattedSendChannel {
+    #[cfg(not(target_arch = "wasm32"))]
+    /// tcp backend
+    Tcp(WriteHalf<TcpStream>),
+    #[cfg(unix)]
+    /// unix backend
+    Unix(WriteHalf<UnixStream>),
+    /// wss backend
+    WSS(SplitSink<Wss, Message>),
+    /// encrypted backend
+    Encrypted(Box<(Snow, UnformattedSendChannel)>),
+}
+
+impl UnformattedSendChannel {
+    pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, f: &F) -> Result<usize> {
+        RefUnformattedSendChannel::from(self).send(obj, f).await
+    }
+    pub fn to_formatted<F: SendFormat>(self, format: F) -> SendChannel<F> {
+        SendChannel {
+            channel: self,
+            format,
+        }
+    }
+}
 
 #[derive(From)]
 pub struct SendChannel<F: SendFormat = Format> {

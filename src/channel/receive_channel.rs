@@ -17,38 +17,35 @@ use crate::async_snow::Snow;
 #[derive(From)]
 pub enum UnformattedReceiveChannel {
     #[cfg(not(target_arch = "wasm32"))]
-    /// encrypted tcp backend
-    Tcp(Box<Snow<ReadHalf<TcpStream>>>),
-    #[cfg(not(target_arch = "wasm32"))]
     /// unencrypted tcp backend
-    InsecureTcp(ReadHalf<TcpStream>),   // doesn't need box since it's less or equal to 16 bytes
-
-    #[cfg(unix)]
-    /// encrypted unix backend
-    Unix(Box<Snow<ReadHalf<UnixStream>>>),
+    Tcp(ReadHalf<TcpStream>), // doesn't need box since it's less or equal to 16 bytes
     #[cfg(unix)]
     /// unencrypted unix backend
-    InsecureUnix(ReadHalf<UnixStream>), // doesn't need box since it's less or equal to 16 bytes
-
-    /// encrypted wss backend
-    Wss(Box<Snow<SplitStream<Wss>>>),
+    Unix(ReadHalf<UnixStream>), // doesn't need box since it's less or equal to 16 bytes
     /// unencrypted wss backend
-    InsecureWSS(SplitStream<Wss>),      // doesn't need box since it's less or equal to 16 bytes
+    WSS(SplitStream<Wss>), // doesn't need box since it's less or equal to 16 bytes
 }
 
 impl UnformattedReceiveChannel {
     pub async fn receive<T: DeserializeOwned, F: ReadFormat>(&mut self, f: &F) -> Result<T> {
-        match self {
-            #[cfg(not(target_arch = "wasm32"))]
-            UnformattedReceiveChannel::Tcp(st) => st.rx(f).await,
-            #[cfg(not(target_arch = "wasm32"))]
-            UnformattedReceiveChannel::InsecureTcp(st) => crate::serialization::rx(st, f).await,
-            #[cfg(unix)]
-            UnformattedReceiveChannel::Unix(st) => st.rx(f).await,
-            #[cfg(unix)]
-            UnformattedReceiveChannel::InsecureUnix(st) => crate::serialization::rx(st, f).await,
-            UnformattedReceiveChannel::Wss(st) => st.wss_rx(f).await,
-            UnformattedReceiveChannel::InsecureWSS(st) => crate::serialization::wss_rx(st, f).await,
+        todo!()
+        // match self {
+        //     #[cfg(not(target_arch = "wasm32"))]
+        //     UnformattedReceiveChannel::Tcp(st) => st.rx(f).await,
+        //     #[cfg(not(target_arch = "wasm32"))]
+        //     UnformattedReceiveChannel::InsecureTcp(st) => crate::serialization::rx(st, f).await,
+        //     #[cfg(unix)]
+        //     UnformattedReceiveChannel::Unix(st) => st.rx(f).await,
+        //     #[cfg(unix)]
+        //     UnformattedReceiveChannel::InsecureUnix(st) => crate::serialization::rx(st, f).await,
+        //     UnformattedReceiveChannel::Wss(st) => st.wss_rx(f).await,
+        //     UnformattedReceiveChannel::InsecureWSS(st) => crate::serialization::wss_rx(st, f).await,
+        // }
+    }
+    pub fn to_formatted<F: ReadFormat>(self, format: F) -> ReceiveChannel<F> {
+        ReceiveChannel {
+            channel: self,
+            format,
         }
     }
 }

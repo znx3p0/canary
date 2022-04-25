@@ -177,7 +177,9 @@ impl<T: TypeIterT> MainChannel<T> {
         Ok(MainChannel(PhantomData, self.1))
     }
     /// receive an object from the stream and iterate to the next type
-    pub async fn receive(mut self) -> crate::Result<(<T::Type as Receive>::Type, MainChannel<T::Next>)>
+    pub async fn receive(
+        mut self,
+    ) -> crate::Result<(<T::Type as Receive>::Type, MainChannel<T::Next>)>
     where
         T::Type: Receive,
         <T as TypeIterT>::Next: TypeIterT,
@@ -242,7 +244,9 @@ impl<T: TypeIterT> PeerChannel<T> {
     }
 
     /// receive an object from the stream and iterate to the next type
-    pub async fn receive(mut self) -> crate::Result<(<T::Type as Transmit>::Type, PeerChannel<T::Next>)>
+    pub async fn receive(
+        mut self,
+    ) -> crate::Result<(<T::Type as Transmit>::Type, PeerChannel<T::Next>)>
     where
         T::Type: Transmit,
         <T as TypeIterT>::Next: TypeIterT,

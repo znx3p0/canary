@@ -22,12 +22,10 @@ Notable features of Canary:
 - Atomic (cannot be divided into simpler constructs)
 - Zero-cost (eventually, nightly features required)
 
-
 Canary will also be supported in other languages (eventually).
 The languages in which Canary will be supported are (in order):
 - JavaScript
 - Python
-- Julia
 - (Other ...)
 
 ## Contribute

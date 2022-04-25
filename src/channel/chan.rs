@@ -1,5 +1,3 @@
-
-
 use cfg_if::cfg_if;
 use derive_more::From;
 
@@ -34,22 +32,6 @@ cfg_if! {
 pub type Channel = super::BidirectionalChannel;
 
 impl Channel {
-    // #[cfg(not(target_arch = "wasm32"))]
-    // /// create a new channel from a tcp stream
-    // pub async fn new_tcp_encrypted(stream: TcpStream) -> Result<Self> {
-    //     Ok(Snow::new(stream).await?.into())
-    // }
-    // /// create a new channel from a tcp stream
-    // pub async fn new_wss_encrypted(stream: Wss) -> Result<Self> {
-    //     Ok(Snow::new_wss(stream).await?.into())
-    // }
-    // #[cfg(unix)]
-    // #[cfg(not(target_arch = "wasm32"))]
-    // /// create a new channel from a unix stream
-    // pub async fn new_unix_encrypted(stream: UnixStream) -> Result<Self> {
-    //     Ok(Snow::new(stream).await?.into())
-    // }
-
     /// construct a typed wrapper for a channel using pipelines, its asymmetric peer is `PeerChannel`
     pub fn new_main<P: Pipeline>(self) -> MainChannel<P::Pipe> {
         MainChannel(Default::default(), self)
