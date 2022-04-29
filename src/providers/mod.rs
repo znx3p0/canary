@@ -2,7 +2,7 @@
 // #[cfg(not(target_arch = "wasm32"))]
 // mod any;
 // mod quic;
-// mod tcp;
+mod tcp;
 // mod unix;
 // mod wss;
 
@@ -16,7 +16,7 @@
 // pub use quic::*;
 
 // #[cfg(not(target_arch = "wasm32"))]
-// pub use tcp::*;
+pub use tcp::*;
 
 // #[cfg(unix)]
 // pub use unix::*;

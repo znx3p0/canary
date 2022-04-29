@@ -4,7 +4,9 @@ use serde::{de::DeserializeOwned, Serialize};
 use crate::serialization::formats::{Format, ReadFormat, SendFormat};
 use crate::Result;
 
-use super::unformatted::UnformattedRawBidirectionalChannel;
+use super::unformatted::{
+    RefUnformattedRawBidirectionalChannel, UnformattedRawBidirectionalChannel,
+};
 
 #[derive(From)]
 pub struct BidirectionalRawChannel<F = Format> {
@@ -46,4 +48,25 @@ impl BidirectionalRawChannel {
     //     let receive = receive.to_formatted(self.format);
     //     (send, receive)
     // }
+}
+
+#[derive(From)]
+pub struct RefBidirectionalRawChannel<'a, F = Format> {
+    pub chan: RefUnformattedRawBidirectionalChannel<'a>,
+    pub format: F,
+}
+
+impl<'a, F> RefBidirectionalRawChannel<'a, F> {
+    pub async fn receive<T: DeserializeOwned>(&mut self) -> Result<T>
+    where
+        F: ReadFormat,
+    {
+        self.chan.receive(&self.format).await
+    }
+    pub async fn send<T: Serialize>(&mut self, obj: T) -> Result<usize>
+    where
+        F: SendFormat,
+    {
+        self.chan.send(obj, &self.format).await
+    }
 }

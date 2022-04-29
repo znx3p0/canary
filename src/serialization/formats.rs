@@ -21,6 +21,12 @@ pub enum Format {
     Postcard = 4,
 }
 
+impl Default for Format {
+    fn default() -> Self {
+        Format::Bincode
+    }
+}
+
 impl SendFormat for Format {
     fn serialize<O: Serialize>(&self, obj: &O) -> crate::Result<Vec<u8>> {
         match self {

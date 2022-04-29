@@ -1,10 +1,13 @@
 use cfg_if::cfg_if;
 use derive_more::From;
+use serde::{de::DeserializeOwned, Serialize};
 
 use crate::serialization::formats::Format;
 
 // use crate::type_iter::{MainChannel, PeerChannel, Pipeline};
 use crate::Result;
+
+use super::unified::{UnformattedUnifiedChannel, UnifiedChannel};
 
 /// `Channel` abstracts network communications as object streams.
 ///
@@ -14,9 +17,25 @@ use crate::Result;
 ///     Ok(())
 /// }
 /// ```
+#[derive(From)]
 pub enum Channel {
     Unified(crate::channel::unified::UnifiedChannel),
-    Bipartite,
+    Bipartite(crate::channel::bipartite::BidirectionalChannel),
+}
+
+impl Channel {
+    pub async fn send<T: Serialize>(&mut self, obj: T) -> Result<usize> {
+        match self {
+            Channel::Unified(c) => c.send(obj).await,
+            Channel::Bipartite(c) => c.send(obj).await,
+        }
+    }
+    pub async fn receive<T: DeserializeOwned>(&mut self) -> Result<T> {
+        match self {
+            Channel::Unified(c) => c.receive().await,
+            Channel::Bipartite(c) => c.receive().await,
+        }
+    }
 }
 
 // impl Channel {
@@ -33,6 +52,17 @@ pub enum Channel {
 //     self.format = format
 // }
 // }
+
+impl Channel {
+    pub fn new_tcp_raw(stream: crate::io::TcpStream) -> Self {
+        let chan = UnifiedChannel {
+            channel: UnformattedUnifiedChannel::Raw(From::from(stream)),
+            format: Default::default(),
+        };
+
+        Channel::Unified(chan)
+    }
+}
 
 #[derive(From)]
 /// a channel handshake that determines if the channel will have encryption
