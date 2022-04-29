@@ -1,11 +1,5 @@
-mod bidirectional_channel;
+mod bipartite;
 mod chan;
+mod encrypted;
 mod handshake;
-mod receive_channel;
-mod send_channel;
-
-pub use bidirectional_channel::*;
-pub use chan::*;
-pub use handshake::*;
-pub use receive_channel::*;
-pub use send_channel::*;
+mod unified;

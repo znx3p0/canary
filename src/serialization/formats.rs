@@ -1,5 +1,5 @@
 use bincode::Options;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::err;
@@ -36,9 +36,9 @@ impl SendFormat for Format {
 }
 
 impl ReadFormat for Format {
-    fn deserialize<'a, T>(&self, bytes: &'a [u8]) -> crate::Result<T>
+    fn deserialize<T>(&self, bytes: &[u8]) -> crate::Result<T>
     where
-        T: serde::de::Deserialize<'a>,
+        T: DeserializeOwned,
     {
         match self {
             Format::Bincode => Bincode::deserialize(&Bincode, bytes),
@@ -72,17 +72,17 @@ pub struct Bson;
 pub struct Postcard;
 
 /// trait that represents the serialize side of a format
-pub trait SendFormat: Clone + 'static {
+pub trait SendFormat {
     /// serialize object in this format
     fn serialize<O: Serialize>(&self, obj: &O) -> crate::Result<Vec<u8>>;
 }
 
 /// trait that represents the deserialize side of a format
-pub trait ReadFormat: Clone + 'static {
+pub trait ReadFormat {
     /// deserialize object in this format
-    fn deserialize<'a, T>(&self, bytes: &'a [u8]) -> crate::Result<T>
+    fn deserialize<T>(&self, bytes: &[u8]) -> crate::Result<T>
     where
-        T: serde::de::Deserialize<'a>;
+        T: serde::de::DeserializeOwned;
 }
 
 /// trait that represents a format that can serialize and deserialize
@@ -100,9 +100,9 @@ impl SendFormat for Bincode {
 }
 impl ReadFormat for Bincode {
     #[inline]
-    fn deserialize<'a, T>(&self, bytes: &'a [u8]) -> crate::Result<T>
+    fn deserialize<T>(&self, bytes: &[u8]) -> crate::Result<T>
     where
-        T: serde::de::Deserialize<'a>,
+        T: serde::de::DeserializeOwned,
     {
         bincode::DefaultOptions::new()
             .allow_trailing_bytes()
@@ -115,50 +115,50 @@ impl ReadFormat for Bincode {
 impl SendFormat for Json {
     #[inline]
     fn serialize<O: Serialize>(&self, obj: &O) -> crate::Result<Vec<u8>> {
-        serde_json::to_vec(obj).map_err(|e| err!((invalid_data, e)))
+        serde_json::to_vec(obj).map_err(err!(@invalid_data))
     }
 }
 #[cfg(feature = "json_ser")]
 impl ReadFormat for Json {
     #[inline]
-    fn deserialize<'a, T>(&self, bytes: &'a [u8]) -> crate::Result<T>
+    fn deserialize<T>(&self, bytes: &[u8]) -> crate::Result<T>
     where
-        T: serde::de::Deserialize<'a>,
+        T: serde::de::DeserializeOwned,
     {
-        serde_json::from_slice(bytes).map_err(|e| err!((invalid_data, e)))
+        serde_json::from_slice(bytes).map_err(err!(@invalid_data))
     }
 }
 #[cfg(feature = "bson_ser")]
 impl SendFormat for Bson {
     #[inline]
     fn serialize<O: Serialize>(&self, obj: &O) -> crate::Result<Vec<u8>> {
-        bson::ser::to_vec(obj).map_err(|e| err!((invalid_data, e)))
+        bson::ser::to_vec(obj).map_err(err!(@invalid_data))
     }
 }
 #[cfg(feature = "bson_ser")]
 impl ReadFormat for Bson {
     #[inline]
-    fn deserialize<'a, T>(&self, bytes: &'a [u8]) -> crate::Result<T>
+    fn deserialize<T>(&self, bytes: &[u8]) -> crate::Result<T>
     where
-        T: serde::de::Deserialize<'a>,
+        T: serde::de::DeserializeOwned,
     {
-        bson::de::from_slice(bytes).map_err(|e| err!((invalid_data, e)))
+        bson::de::from_slice(bytes).map_err(err!(@invalid_data))
     }
 }
 #[cfg(feature = "postcard_ser")]
 impl SendFormat for Postcard {
     #[inline]
     fn serialize<O: Serialize>(&self, obj: &O) -> crate::Result<Vec<u8>> {
-        postcard::to_allocvec(obj).map_err(|e| err!((invalid_data, e)))
+        postcard::to_allocvec(obj).map_err(err!(@invalid_data))
     }
 }
 #[cfg(feature = "postcard_ser")]
 impl ReadFormat for Postcard {
     #[inline]
-    fn deserialize<'a, T>(&self, bytes: &'a [u8]) -> crate::Result<T>
+    fn deserialize<T>(&self, bytes: &[u8]) -> crate::Result<T>
     where
-        T: serde::de::Deserialize<'a>,
+        T: serde::de::DeserializeOwned,
     {
-        postcard::from_bytes(bytes).map_err(|e| err!((invalid_data, e)))
+        postcard::from_bytes(bytes).map_err(err!(@invalid_data))
     }
 }

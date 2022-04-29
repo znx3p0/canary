@@ -1,26 +1,27 @@
+use std::sync::Arc;
+
 use futures::stream::{SplitSink, SplitStream};
 use serde::{de::DeserializeOwned, Serialize};
 use snow::{params::*, Builder, StatelessTransportState};
 use tungstenite::Message;
 
-use crate::channel::UnformattedBidirectionalChannel;
 use crate::err;
 use crate::io::{Read, ReadExt, Write, WriteExt};
 use crate::serialization::formats::{Bincode, ReadFormat, SendFormat};
 use crate::serialization::{rx, tx, wss_rx, wss_tx, zc};
-use crate::{channel::Wss, Result};
+use crate::{io::Wss, Result};
 
+#[repr(transparent)]
 #[derive(Clone)]
 pub struct Snow {
     /// contains the stream
-    transport: std::sync::Arc<StatelessTransportState>,
-    nonce: u64,
+    transport: Arc<StatelessTransportState>,
 }
 
 const PACKET_LEN: u64 = 65519;
 
 impl Snow {
-    pub(crate) fn encrypt_packets(&self, buf: &[u8]) -> Result<Vec<u8>> {
+    pub(crate) fn encrypt_packets(&self, buf: Vec<u8>) -> Result<Vec<u8>> {
         let mut total = Vec::with_capacity(buf.len() + 16);
 
         for buf in buf.chunks(PACKET_LEN as _) {
@@ -41,9 +42,21 @@ impl Snow {
     fn encrypt_packet_raw(&self, buf: &[u8], mut msg: &mut [u8]) -> Result {
         // encrypt into message buffer
         self.transport
-            .write_message(self.nonce, buf, &mut msg)
-            .map_err(|e| err!(invalid_data, e))?;
+            .write_message(0, buf, &mut msg)
+            .map_err(err!(@invalid_data))?;
         Ok(())
+    }
+
+    pub fn decrypt(&self, buf: &[u8]) -> Result<Vec<u8>> {
+        let mut bytes = vec![];
+        for buf in buf.chunks(PACKET_LEN as usize + 16) {
+            let mut message = vec![0u8; buf.len()]; // move message outside the loop
+            self.transport
+                .read_message(0, &buf, &mut message)
+                .map_err(err!(@other))?;
+            bytes.append(&mut message);
+        }
+        Ok(bytes)
     }
 
     ///////////////////////

@@ -1,25 +1,10 @@
 use cfg_if::cfg_if;
 use derive_more::From;
 
-#[cfg(not(target_arch = "wasm32"))]
-use crate::io::TcpStream;
-
 use crate::serialization::formats::Format;
 
-use crate::type_iter::{MainChannel, PeerChannel, Pipeline};
+// use crate::type_iter::{MainChannel, PeerChannel, Pipeline};
 use crate::Result;
-
-cfg_if! {
-    if #[cfg(target_arch = "wasm32")] {
-        /// inner websocket type
-        pub type Wss = reqwasm::websocket::futures::WebSocket;
-    } else {
-        /// inner websocket type
-        pub type Wss = crate::io::wss::WebSocketStream<
-            async_tungstenite::tokio::TokioAdapter<TcpStream>
-        >;
-    }
-}
 
 /// `Channel` abstracts network communications as object streams.
 ///
@@ -29,22 +14,25 @@ cfg_if! {
 ///     Ok(())
 /// }
 /// ```
-pub type Channel = super::BidirectionalChannel;
-
-impl Channel {
-    /// construct a typed wrapper for a channel using pipelines, its asymmetric peer is `PeerChannel`
-    pub fn new_main<P: Pipeline>(self) -> MainChannel<P::Pipe> {
-        MainChannel(Default::default(), self)
-    }
-    /// construct a typed wrapper for a channel using pipelines, its asymmetric peer is `MainChannel`
-    pub fn new_peer<P: Pipeline>(self) -> PeerChannel<P::Pipe> {
-        PeerChannel(Default::default(), self)
-    }
-    /// set the format of the channel
-    pub fn set_format(&mut self, format: Format) {
-        self.format = format
-    }
+pub enum Channel {
+    Unified(crate::channel::unified::UnifiedChannel),
+    Bipartite,
 }
+
+// impl Channel {
+// /// construct a typed wrapper for a channel using pipelines, its asymmetric peer is `PeerChannel`
+// pub fn new_main<P: Pipeline>(self) -> MainChannel<P::Pipe> {
+//     MainChannel(Default::default(), self)
+// }
+// /// construct a typed wrapper for a channel using pipelines, its asymmetric peer is `MainChannel`
+// pub fn new_peer<P: Pipeline>(self) -> PeerChannel<P::Pipe> {
+//     PeerChannel(Default::default(), self)
+// }
+// /// set the format of the channel
+// pub fn set_format(&mut self, format: Format) {
+//     self.format = format
+// }
+// }
 
 #[derive(From)]
 /// a channel handshake that determines if the channel will have encryption

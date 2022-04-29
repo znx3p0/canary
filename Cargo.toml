@@ -46,7 +46,7 @@ rand = "0.8.5"
 tungstenite = "^0.17.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { version = "1.17.0", features = [ "net", "io-util", "time" ] }
+tokio = { version = "1.17.0", features = [ "net", "io-util", "time", "full" ] }
 
 ############################
 # providers

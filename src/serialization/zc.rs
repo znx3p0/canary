@@ -3,7 +3,6 @@
 
 use crate::io::{Read, ReadExt, Write, WriteExt};
 use crate::{err, Result};
-use std::future::Future;
 
 #[inline]
 pub(crate) fn try_vec<T: Default + Clone>(size: usize) -> Result<Vec<T>> {

@@ -35,6 +35,6 @@ pub mod providers;
 pub mod serialization;
 pub mod type_iter;
 
-pub use channel::Channel;
+// pub use channel::Channel;
 pub use err::Error;
 pub use err::Result;

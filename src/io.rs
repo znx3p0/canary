@@ -17,10 +17,16 @@ cfg_if! {
 
         pub(crate) use tokio::time::sleep;
         pub use async_tungstenite as wss;
+
+        pub type Wss = crate::io::wss::WebSocketStream<
+            async_tungstenite::tokio::TokioAdapter<TcpStream>
+        >;
     } else if #[cfg(target_arch = "wasm32")] {
         pub use futures::io::AsyncRead as Read;
         pub use futures::io::AsyncReadExt as ReadExt;
         pub use futures::io::AsyncWrite as Write;
         pub use futures::io::AsyncWriteExt as WriteExt;
+        pub type Wss = reqwasm::websocket::futures::WebSocket;
+
     }
 }

@@ -8,6 +8,7 @@ trait ResultExt<T> {
 }
 
 impl<T, E: std::error::Error + Send + Sync + 'static> ResultExt<T> for core::result::Result<T, E> {
+    #[inline]
     fn map_other(self) -> Result<T> {
         self.map_err(err!(@other))
     }
