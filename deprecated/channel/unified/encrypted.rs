@@ -8,13 +8,32 @@ use derive_more::From;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+use super::RefUnformattedRawUnifiedChannel;
 use super::UnformattedRawUnifiedChannel;
+
+// encrypted
+#[derive(From)]
+pub enum RefUnformattedUnifiedChannel<'a> {
+    Raw(RefUnformattedRawUnifiedChannel<'a>),
+    Encrypted(RefUnformattedRawUnifiedChannel<'a>, &'a Snow),
+}
 
 // encrypted
 #[derive(From)]
 pub enum UnformattedUnifiedChannel {
     Raw(UnformattedRawUnifiedChannel),
     Encrypted(UnformattedRawUnifiedChannel, Snow),
+}
+
+impl From<&mut UnformattedUnifiedChannel> for RefUnformattedUnifiedChannel<'_> {
+    fn from(chan: &mut UnformattedUnifiedChannel) -> Self {
+        match chan {
+            UnformattedUnifiedChannel::Raw(c) => RefUnformattedUnifiedChannel::Raw(c.into()),
+            UnformattedUnifiedChannel::Encrypted(c, s) => {
+                RefUnformattedUnifiedChannel::Encrypted(c.into(), s)
+            }
+        }
+    }
 }
 
 impl UnformattedUnifiedChannel {

@@ -1,7 +1,4 @@
-pub mod bipartite;
-pub mod chan;
+pub mod channels;
 pub mod encrypted;
 pub mod handshake;
-pub mod unified;
-
-pub use chan::Channel;
+pub mod raw;
