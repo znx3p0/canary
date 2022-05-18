@@ -112,7 +112,6 @@ pub(crate) async fn initialize_initiator(
     chan: &mut Channel,
     noise_params: NoiseParams,
 ) -> Result<StatelessTransportState> {
-    dbg!();
 
     let mut initiator = snow::Builder::new(noise_params)
         .build_initiator()
