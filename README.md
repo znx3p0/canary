@@ -5,7 +5,7 @@ communications through the network easier.
 
 
 <p align="center">
-    <img src = "https://i.imgur.com/LIj5jXn.png" alt = "Canary Logo" width = "25%" height = "auto" center />
+    <img src = "https://i.imgur.com/LIj5jXn.png" alt = "Canary logo" width = "25%" height = "auto" center />
 </p>
 
 Canary is a distributed systems and communications framework, focusing on minimalism, ease of use and performance.
@@ -19,14 +19,7 @@ implementations will be made to improve efficiency and wire cost.
 Notable features of Canary:
 - Seamless encryption
 - Wasm support
-- Atomic (cannot be divided into simpler constructs)
-- Zero-cost (eventually, nightly features required)
-
-Canary will also be supported in other languages (eventually).
-The languages in which Canary will be supported are (in order):
-- JavaScript
-- Python
-- (Other ...)
+- Composable
 
 ## Contribute
 If you'd like to contribute to the project, please tell us at the

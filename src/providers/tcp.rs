@@ -107,9 +107,10 @@ impl Tcp {
     }
 
     pub async fn next(&self) -> Result<Handshake> {
-        let (tcp, _) = self.0.accept().await?;
+        let (stream, _) = self.0.accept().await?;
         Ok(Handshake::from(Channel::from_tcp_raw(
-            tcp,
+            stream,
+            Default::default(),
             Default::default(),
         )))
     }
@@ -141,6 +142,7 @@ impl Tcp {
         };
         Ok(Handshake::from(Channel::from_tcp_raw(
             stream,
+            Default::default(),
             Default::default(),
         )))
     }

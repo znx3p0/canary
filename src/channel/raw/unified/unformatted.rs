@@ -1,8 +1,10 @@
 use derive_more::From;
-use futures::SinkExt;
+use futures::{SinkExt, StreamExt};
 use serde::{de::DeserializeOwned, Serialize};
 use tungstenite::Message;
 
+use crate::channel::raw::bipartite::receive_channel::UnformattedRawReceiveChannel;
+use crate::channel::raw::bipartite::send_channel::UnformattedRawSendChannel;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::io::TcpStream;
 #[cfg(unix)]
@@ -38,17 +40,43 @@ pub enum UnformattedRawUnifiedChannel {
     /// wss backend
     Wss(Box<Wss>), // boxed since it's heavy and would weigh down other variants
 }
+
 impl UnformattedRawUnifiedChannel {
     pub fn new(from: impl Into<Self>) -> Self {
         from.into()
     }
-    pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, f: &F) -> Result<usize> {
+    pub fn split(self) -> (UnformattedRawSendChannel, UnformattedRawReceiveChannel) {
+        match self {
+            UnformattedRawUnifiedChannel::Tcp(stream) => {
+                let (read, write) = stream.into_split();
+                (From::from(write), From::from(read))
+            }
+            UnformattedRawUnifiedChannel::Unix(stream) => {
+                let (read, write) = stream.into_split();
+                (From::from(write), From::from(read))
+            }
+            UnformattedRawUnifiedChannel::Wss(stream) => {
+                let (write, read) = stream.split();
+                (From::from(write), From::from(read))
+            }
+        }
+    }
+    pub async fn send<T: Serialize, F: SendFormat>(
+        &mut self,
+        obj: T,
+        format: &mut F,
+    ) -> Result<usize> {
         RefUnformattedRawUnifiedChannel::from(self)
-            .send(obj, f)
+            .send(obj, format)
             .await
     }
-    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(&mut self, f: &F) -> Result<T> {
-        RefUnformattedRawUnifiedChannel::from(self).receive(f).await
+    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
+        &mut self,
+        format: &mut F,
+    ) -> Result<T> {
+        RefUnformattedRawUnifiedChannel::from(self)
+            .receive(format)
+            .await
     }
 }
 
@@ -66,13 +94,17 @@ impl<'a> From<&'a mut UnformattedRawUnifiedChannel> for RefUnformattedRawUnified
 }
 
 impl<'a> RefUnformattedRawUnifiedChannel<'a> {
-    pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, f: &F) -> Result<usize> {
+    pub async fn send<T: Serialize, F: SendFormat>(
+        &mut self,
+        obj: T,
+        format: &mut F,
+    ) -> Result<usize> {
         use crate::serialization::tx;
         match self {
-            Self::Tcp(st) => tx(st, obj, f).await,
-            Self::Unix(st) => tx(st, obj, f).await,
+            Self::Tcp(st) => tx(st, obj, format).await,
+            Self::Unix(st) => tx(st, obj, format).await,
             Self::Wss(st) => {
-                let buf = f.serialize(&obj).map_err(err!(@invalid_data))?;
+                let buf = format.serialize(&obj).map_err(err!(@invalid_data))?;
                 let len = buf.len();
                 let item = Message::Binary(buf);
                 st.send(item).await.map_err(err!(@other))?;
@@ -80,14 +112,17 @@ impl<'a> RefUnformattedRawUnifiedChannel<'a> {
             }
         }
     }
-    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(&mut self, f: &F) -> Result<T> {
+    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
+        &mut self,
+        format: &mut F,
+    ) -> Result<T> {
         use crate::serialization::{rx, wss_rx};
         match self {
             #[cfg(not(target_arch = "wasm32"))]
-            Self::Tcp(st) => rx(st, f).await,
+            Self::Tcp(st) => rx(st, format).await,
             #[cfg(unix)]
-            Self::Unix(st) => rx(st, f).await,
-            Self::Wss(st) => wss_rx(st, f).await,
+            Self::Unix(st) => rx(st, format).await,
+            Self::Wss(st) => wss_rx(st, format).await,
         }
     }
     pub fn as_formatted<F>(&'a mut self, format: F) -> RefRawUnifiedChannel<'a, F> {

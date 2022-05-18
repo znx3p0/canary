@@ -15,7 +15,7 @@ use super::formats::{ReadFormat, SendFormat};
 use super::zc;
 
 /// send an item through the stream
-pub async fn tx<T, O, F: SendFormat>(st: &mut T, obj: O, f: &F) -> Result<usize>
+pub async fn tx<T, O, F: SendFormat>(st: &mut T, obj: O, f: &mut F) -> Result<usize>
 where
     T: Write + Unpin,
     O: Serialize,
@@ -29,7 +29,7 @@ where
 }
 
 /// receive an item from the stream
-pub async fn rx<T, O, F: ReadFormat>(st: &mut T, f: &F) -> Result<O>
+pub async fn rx<T, O, F: ReadFormat>(st: &mut T, f: &mut F) -> Result<O>
 where
     T: Read + Unpin,
     O: DeserializeOwned,
@@ -45,7 +45,7 @@ where
 
 #[cfg(not(target_arch = "wasm32"))]
 /// send a message from a websocket stream
-pub async fn wss_tx<T, O, F: SendFormat>(st: &mut T, obj: O, f: &F) -> Result<usize>
+pub async fn wss_tx<T, O, F: SendFormat>(st: &mut T, obj: O, f: &mut F) -> Result<usize>
 where
     T: futures::prelude::Sink<Message> + Unpin,
     O: Serialize,
@@ -61,7 +61,7 @@ where
 
 #[cfg(target_arch = "wasm32")]
 /// send a message from a websocket stream
-pub async fn wss_tx<T, O, F: SendFormat>(st: &mut T, obj: O, f: &F) -> Result<usize>
+pub async fn wss_tx<T, O, F: SendFormat>(st: &mut T, obj: O, f: &mut F) -> Result<usize>
 where
     T: futures::prelude::Sink<Message> + Unpin,
     O: Serialize,
@@ -77,7 +77,7 @@ where
 
 #[cfg(not(target_arch = "wasm32"))]
 /// receive a message from a websocket stream
-pub async fn wss_rx<T, O, F: ReadFormat>(st: &mut T, f: &F) -> Result<O>
+pub async fn wss_rx<T, O, F: ReadFormat>(st: &mut T, f: &mut F) -> Result<O>
 where
     T: futures::prelude::Stream<
             Item = std::result::Result<Message, crate::io::wss::tungstenite::error::Error>,
@@ -102,7 +102,7 @@ where
 
 #[cfg(target_arch = "wasm32")]
 /// receive a message from a websocket stream
-pub async fn wss_rx<T, O, F: ReadFormat>(st: &mut T, f: &F) -> Result<O>
+pub async fn wss_rx<T, O, F: ReadFormat>(st: &mut T, f: &mut F) -> Result<O>
 where
     T: futures::prelude::Stream<
             Item = std::result::Result<Message, reqwasm::websocket::WebSocketError>,

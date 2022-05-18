@@ -1,27 +1,27 @@
-use crate::Result;
+use crate::{
+    async_snow::{Decrypt, Encrypt},
+    Result,
+};
 use derive_more::From;
 use serde::{de::DeserializeOwned, Serialize};
 
-use crate::{
-    async_snow::{Cipher, Snow},
-    serialization::formats::{ReadFormat, SendFormat},
-};
+use crate::serialization::formats::{ReadFormat, SendFormat};
 
 #[derive(From)]
-pub struct SnowWith<'a, F> {
-    pub snow: &'a Snow,
-    pub format: &'a F,
+pub struct WithCipher<'a, C, F> {
+    pub snow: &'a mut C,
+    pub format: &'a mut F,
 }
 
-impl<F: SendFormat> SendFormat for SnowWith<'_, F> {
-    fn serialize<O: Serialize>(&self, obj: &O) -> Result<Vec<u8>> {
+impl<C: Encrypt, F: SendFormat> SendFormat for WithCipher<'_, C, F> {
+    fn serialize<O: Serialize>(&mut self, obj: &O) -> Result<Vec<u8>> {
         let obj = self.format.serialize(obj)?;
         self.snow.encrypt_packets(obj)
     }
 }
 
-impl<F: ReadFormat> ReadFormat for SnowWith<'_, F> {
-    fn deserialize<T>(&self, bytes: &[u8]) -> crate::Result<T>
+impl<C: Decrypt, F: ReadFormat> ReadFormat for WithCipher<'_, C, F> {
+    fn deserialize<T>(&mut self, bytes: &[u8]) -> crate::Result<T>
     where
         T: DeserializeOwned,
     {

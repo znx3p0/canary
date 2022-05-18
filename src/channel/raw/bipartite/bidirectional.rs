@@ -15,10 +15,20 @@ pub struct UnformattedRawBidirectionalChannel {
 }
 
 impl UnformattedRawBidirectionalChannel {
-    pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, format: &F) -> Result<usize> {
+    pub fn split(self) -> (UnformattedRawSendChannel, UnformattedRawReceiveChannel) {
+        (self.send_chan, self.receive_chan)
+    }
+    pub async fn send<T: Serialize, F: SendFormat>(
+        &mut self,
+        obj: T,
+        format: &mut F,
+    ) -> Result<usize> {
         self.send_chan.send(obj, format).await
     }
-    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(&mut self, format: &F) -> Result<T> {
+    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
+        &mut self,
+        format: &mut F,
+    ) -> Result<T> {
         self.receive_chan.receive(format).await
     }
 }
@@ -43,10 +53,17 @@ impl<'a> From<&'a mut UnformattedRawBidirectionalChannel>
 }
 
 impl<'a> RefUnformattedRawBidirectionalChannel<'a> {
-    pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, format: &F) -> Result<usize> {
+    pub async fn send<T: Serialize, F: SendFormat>(
+        &mut self,
+        obj: T,
+        format: &mut F,
+    ) -> Result<usize> {
         self.send_chan.send(obj, format).await
     }
-    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(&mut self, format: &F) -> Result<T> {
+    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
+        &mut self,
+        format: &mut F,
+    ) -> Result<T> {
         self.receive_chan.receive(format).await
     }
     pub fn as_formatted<F>(&'a mut self, format: F) -> RefRawBidirectionalChannel<'a, F> {
@@ -71,13 +88,13 @@ impl<F> RawBidirectionalChannel<F> {
     where
         F: ReadFormat,
     {
-        self.chan.receive(&self.format).await
+        self.chan.receive(&mut self.format).await
     }
     pub async fn send<T: Serialize>(&mut self, obj: T) -> Result<usize>
     where
         F: SendFormat,
     {
-        self.chan.send(obj, &self.format).await
+        self.chan.send(obj, &mut self.format).await
     }
 }
 
@@ -107,12 +124,12 @@ impl<'a, F> RefRawBidirectionalChannel<'a, F> {
     where
         F: ReadFormat,
     {
-        self.chan.receive(&self.format).await
+        self.chan.receive(&mut self.format).await
     }
     pub async fn send<T: Serialize>(&mut self, obj: T) -> Result<usize>
     where
         F: SendFormat,
     {
-        self.chan.send(obj, &self.format).await
+        self.chan.send(obj, &mut self.format).await
     }
 }

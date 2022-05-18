@@ -18,13 +18,13 @@ impl<F> RefRawUnifiedChannel<'_, F> {
     where
         F: SendFormat,
     {
-        self.channel.send(obj, &self.format).await
+        self.channel.send(obj, &mut self.format).await
     }
     pub async fn receive<T: DeserializeOwned>(&mut self) -> Result<T>
     where
         F: ReadFormat,
     {
-        self.channel.receive(&self.format).await
+        self.channel.receive(&mut self.format).await
     }
 }
 
@@ -39,12 +39,12 @@ impl<F> RawUnifiedChannel<F> {
     where
         F: SendFormat,
     {
-        self.channel.send(obj, &self.format).await
+        self.channel.send(obj, &mut self.format).await
     }
     pub async fn receive<T: DeserializeOwned>(&mut self) -> Result<T>
     where
         F: ReadFormat,
     {
-        self.channel.receive(&self.format).await
+        self.channel.receive(&mut self.format).await
     }
 }

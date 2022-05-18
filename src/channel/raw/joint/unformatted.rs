@@ -3,6 +3,8 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use crate::channel::raw::bipartite::bidirectional::UnformattedRawBidirectionalChannel;
+use crate::channel::raw::bipartite::receive_channel::UnformattedRawReceiveChannel;
+use crate::channel::raw::bipartite::send_channel::UnformattedRawSendChannel;
 use crate::channel::raw::unified::unformatted::{
     RefUnformattedRawUnifiedChannel, UnformattedRawUnifiedChannel,
 };
@@ -22,6 +24,7 @@ pub enum UnformattedRawChannel {
     Unified(UnformattedRawUnifiedChannel),
     Bipartite(UnformattedRawBidirectionalChannel),
 }
+
 #[derive(From)]
 pub struct RefRawChannel<'a, F = Format> {
     channel: RefUnformattedRawChannel<'a>,
@@ -48,16 +51,23 @@ impl<'a> From<&'a mut UnformattedRawChannel> for RefUnformattedRawChannel<'a> {
 }
 
 impl<'a> RefUnformattedRawChannel<'a> {
-    pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, f: &F) -> Result<usize> {
+    pub async fn send<T: Serialize, F: SendFormat>(
+        &mut self,
+        obj: T,
+        format: &mut F,
+    ) -> Result<usize> {
         match self {
-            Self::Unified(chan) => chan.send(obj, f).await,
-            Self::Bipartite(chan) => chan.send(obj, f).await,
+            Self::Unified(chan) => chan.send(obj, format).await,
+            Self::Bipartite(chan) => chan.send(obj, format).await,
         }
     }
-    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(&mut self, f: &F) -> Result<T> {
+    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
+        &mut self,
+        format: &mut F,
+    ) -> Result<T> {
         match self {
-            Self::Unified(chan) => chan.receive(f).await,
-            Self::Bipartite(chan) => chan.receive(f).await,
+            Self::Unified(chan) => chan.receive(format).await,
+            Self::Bipartite(chan) => chan.receive(format).await,
         }
     }
     pub fn to_formatted<F>(self, format: F) -> RefRawChannel<'a, F> {
@@ -69,16 +79,29 @@ impl<'a> RefUnformattedRawChannel<'a> {
 }
 
 impl UnformattedRawChannel {
-    pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, f: &F) -> Result<usize> {
+    pub async fn send<T: Serialize, F: SendFormat>(
+        &mut self,
+        obj: T,
+        format: &mut F,
+    ) -> Result<usize> {
         match self {
-            Self::Unified(chan) => chan.send(obj, f).await,
-            Self::Bipartite(chan) => chan.send(obj, f).await,
+            Self::Unified(chan) => chan.send(obj, format).await,
+            Self::Bipartite(chan) => chan.send(obj, format).await,
         }
     }
-    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(&mut self, f: &F) -> Result<T> {
+    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
+        &mut self,
+        format: &mut F,
+    ) -> Result<T> {
         match self {
-            Self::Unified(chan) => chan.receive(f).await,
-            Self::Bipartite(chan) => chan.receive(f).await,
+            Self::Unified(chan) => chan.receive(format).await,
+            Self::Bipartite(chan) => chan.receive(format).await,
+        }
+    }
+    pub fn split(self) -> (UnformattedRawSendChannel, UnformattedRawReceiveChannel) {
+        match self {
+            UnformattedRawChannel::Unified(chan) => chan.split(),
+            UnformattedRawChannel::Bipartite(chan) => chan.split(),
         }
     }
 }

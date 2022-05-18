@@ -58,7 +58,7 @@ impl<'a> From<&'a mut UnformattedRawSendChannel> for RefUnformattedRawSendChanne
 }
 
 impl<'a> RefUnformattedRawSendChannel<'a> {
-    pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, f: &F) -> Result<usize> {
+    pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, f: &mut F) -> Result<usize> {
         use crate::serialization::tx;
         match self {
             RefUnformattedRawSendChannel::Tcp(st) => tx(st, obj, f).await,
@@ -81,7 +81,7 @@ impl<'a> RefUnformattedRawSendChannel<'a> {
 }
 
 impl UnformattedRawSendChannel {
-    pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, f: &F) -> Result<usize> {
+    pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, f: &mut F) -> Result<usize> {
         RefUnformattedRawSendChannel::from(self).send(obj, f).await
     }
     pub fn to_formatted<F: SendFormat>(self, format: F) -> RawSendChannel<F> {
@@ -94,12 +94,12 @@ impl UnformattedRawSendChannel {
 
 impl<F: SendFormat> RefRawSendChannel<'_, F> {
     pub async fn send<T: Serialize>(&mut self, obj: T) -> Result<usize> {
-        self.channel.send(obj, &self.format).await
+        self.channel.send(obj, &mut self.format).await
     }
 }
 
 impl<F: SendFormat> RawSendChannel<F> {
     pub async fn send<T: Serialize>(&mut self, obj: T) -> Result<usize> {
-        self.channel.send(obj, &self.format).await
+        self.channel.send(obj, &mut self.format).await
     }
 }

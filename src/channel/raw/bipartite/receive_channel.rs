@@ -44,14 +44,17 @@ pub struct RawReceiveChannel<F = Format> {
 }
 
 impl<'a> RefUnformattedRawReceiveChannel<'a> {
-    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(&mut self, f: &F) -> Result<T> {
+    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
+        &mut self,
+        format: &mut F,
+    ) -> Result<T> {
         use crate::serialization::{rx, wss_rx};
         match self {
             #[cfg(not(target_arch = "wasm32"))]
-            RefUnformattedRawReceiveChannel::Tcp(st) => rx(st, f).await,
+            RefUnformattedRawReceiveChannel::Tcp(st) => rx(st, format).await,
             #[cfg(unix)]
-            RefUnformattedRawReceiveChannel::Unix(st) => rx(st, f).await,
-            RefUnformattedRawReceiveChannel::WSS(st) => wss_rx(st, f).await,
+            RefUnformattedRawReceiveChannel::Unix(st) => rx(st, format).await,
+            RefUnformattedRawReceiveChannel::WSS(st) => wss_rx(st, format).await,
         }
     }
     pub fn as_formatted<F>(&'a mut self, format: F) -> RefRawReceiveChannel<'a, F> {
@@ -74,8 +77,13 @@ impl<'a> From<&'a mut UnformattedRawReceiveChannel> for RefUnformattedRawReceive
 }
 
 impl UnformattedRawReceiveChannel {
-    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(&mut self, f: &F) -> Result<T> {
-        RefUnformattedRawReceiveChannel::from(self).receive(f).await
+    pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
+        &mut self,
+        format: &mut F,
+    ) -> Result<T> {
+        RefUnformattedRawReceiveChannel::from(self)
+            .receive(format)
+            .await
     }
     pub fn to_formatted<F: ReadFormat>(self, format: F) -> RawReceiveChannel<F> {
         RawReceiveChannel {
@@ -87,12 +95,12 @@ impl UnformattedRawReceiveChannel {
 
 impl<F: ReadFormat> RefRawReceiveChannel<'_, F> {
     pub async fn receive<T: DeserializeOwned>(&mut self) -> Result<T> {
-        self.channel.receive(&self.format).await
+        self.channel.receive(&mut self.format).await
     }
 }
 
 impl<F: ReadFormat> RawReceiveChannel<F> {
     pub async fn receive<T: DeserializeOwned>(&mut self) -> Result<T> {
-        self.channel.receive(&self.format).await
+        self.channel.receive(&mut self.format).await
     }
 }
