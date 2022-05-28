@@ -19,7 +19,7 @@ futures = "0.3.21"
 async-trait = "0.1.53"
 tracing = "0.1.33"
 cfg-if = "1.0.0"
-compact_str = { version = "0.3.2", features = [ "serde" ] }
+compact_str = { version = "0.4", features = [ "serde" ] }
 delegate = "0.6.2"
 bytes = { version = "1", features = [ "serde" ] }
 take_mut = "0.2.2"

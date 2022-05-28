@@ -1,7 +1,7 @@
 use crate::{err, Error};
 use crate::{Channel, Result};
 use cfg_if::cfg_if;
-use compact_str::CompactStr;
+use compact_str::CompactString;
 use serde::ser::SerializeSeq;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -46,9 +46,9 @@ pub enum Addr {
     /// Unencrypted unix provider
     InsecureUnix(Arc<PathBuf>),
     /// Websocket provider
-    Wss(Arc<CompactStr>),
+    Wss(Arc<CompactString>),
     /// Unencrypted websocket provider
-    InsecureWss(Arc<CompactStr>),
+    InsecureWss(Arc<CompactString>),
 }
 
 impl From<&Addr> for String {
@@ -148,7 +148,7 @@ impl<'de> Deserialize<'de> for Addr {
     where
         D: serde::Deserializer<'de>,
     {
-        let string: CompactStr = CompactStr::deserialize(deserializer)?;
+        let string: CompactString = CompactString::deserialize(deserializer)?;
         Addr::from_str(&string).map_err(serde::de::Error::custom)
     }
 }
@@ -272,13 +272,13 @@ impl FromStr for Addr {
             }
             AddressType::Wss => {
                 let addr = addr
-                    .parse::<CompactStr>()
+                    .parse::<CompactString>()
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::Wss(Arc::new(addr))
             }
             AddressType::InsecureWss => {
                 let addr = addr
-                    .parse::<CompactStr>()
+                    .parse::<CompactString>()
                     .map_err(|e| err!(invalid_input, e))?;
                 Addr::InsecureWss(Arc::new(addr))
             }
