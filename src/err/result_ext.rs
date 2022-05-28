@@ -1,7 +1,7 @@
 use crate::err;
 
 /// a result type equivalent to std::io::Result, but implements `Serialize` and `Deserialize`
-pub type Result<T = (), E = super::Error> = std::result::Result<T, E>;
+pub type Result<T, E = super::Error> = std::result::Result<T, E>;
 
 trait ResultExt<T> {
     fn map_other(self) -> Result<T>;

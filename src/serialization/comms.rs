@@ -53,7 +53,7 @@ where
 {
     let serialized = f.serialize(&obj)?;
     let len = serialized.len();
-    let msg = Message::Binary(serialized);
+    let msg = Message::Binary(serialized.to_vec());
     st.feed(msg).await.map_err(|e| err!(e.to_string()))?;
     st.flush().await.map_err(|e| err!(e.to_string()))?;
     Ok(len)

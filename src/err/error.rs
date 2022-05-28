@@ -162,6 +162,7 @@ use std::{
     io::ErrorKind as StdErrorKind,
 };
 
+#[repr(transparent)]
 /// a result type equivalent to std::io::Error, but implements `Serialize` and `Deserialize`
 pub struct Error(std::io::Error);
 impl Error {
@@ -172,10 +173,31 @@ impl Error {
     }
 }
 
+impl std::ops::Deref for Error {
+    type Target = std::io::Error;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for Error {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl From<std::io::Error> for Error {
     #[inline]
     fn from(error: std::io::Error) -> Self {
         Error(error)
+    }
+}
+
+impl From<Error> for std::io::Error {
+    #[inline]
+    fn from(error: Error) -> Self {
+        error.0
     }
 }
 
@@ -412,6 +434,7 @@ pub enum ErrorKind {
 }
 
 impl From<ErrorKind> for StdErrorKind {
+    #[inline(always)]
     fn from(kind: ErrorKind) -> Self {
         match kind {
             ErrorKind::NotFound => StdErrorKind::NotFound,
@@ -440,6 +463,7 @@ impl From<ErrorKind> for StdErrorKind {
 }
 
 impl From<StdErrorKind> for ErrorKind {
+    #[inline(always)]
     fn from(kind: StdErrorKind) -> Self {
         match kind {
             StdErrorKind::NotFound => ErrorKind::NotFound,

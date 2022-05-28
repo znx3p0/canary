@@ -22,8 +22,6 @@
 pub mod async_snow;
 /// contains channels and constructs associated with them
 pub mod channel;
-/// contains custom error types and result
-pub mod err;
 mod io;
 /// contains common imports
 pub mod prelude;
@@ -35,8 +33,6 @@ pub mod providers;
 pub mod serialization;
 pub mod type_iter;
 
-// pub use channel::Channel;
-pub use err::Error;
-pub use err::Result;
+pub use channel::channels::Channel;
 
-pub use crate::channel::channels::Channel;
+pub use io_err::{err, Error, Result};

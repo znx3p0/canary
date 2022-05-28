@@ -37,7 +37,7 @@
 //     }
 //     #[inline]
 //     /// Connect to the following address without discovery
-//     pub async fn raw_connect_with_retries(
+//     pub async fn connect(
 //         addrs: impl ToSocketAddrs + std::fmt::Debug,
 //         retries: u32,
 //         time_to_retry: u64,
@@ -76,20 +76,20 @@
 //         retries: u32,
 //         time_to_retry: u64,
 //     ) -> Result<Handshake> {
-//         Self::raw_connect_with_retries(&addrs, retries, time_to_retry).await
+//         Self::connect(&addrs, retries, time_to_retry).await
 //     }
 // }
 
 #![cfg(not(target_arch = "wasm32"))]
 
 use crate::channel::handshake::Handshake;
-use crate::err;
 use crate::io::TcpListener;
 use crate::io::TcpStream;
 use crate::io::ToSocketAddrs;
 use crate::Channel;
 use crate::Result;
 
+use backoff::ExponentialBackoff;
 use derive_more::{From, Into};
 
 #[derive(From, Into)]
@@ -108,56 +108,34 @@ impl Tcp {
 
     pub async fn next(&self) -> Result<Handshake> {
         let (stream, _) = self.0.accept().await?;
-        Ok(Handshake::from(Channel::from_tcp_raw(
+        Ok(Handshake::from(Channel::from_raw(
             stream,
             Default::default(),
             Default::default(),
         )))
     }
-    #[inline]
-    /// Connect to the following address without discovery
-    pub async fn raw_connect_with_retries(
+    pub async fn connect_no_backoff(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
-        retries: u32,
-        time_to_retry: u64,
     ) -> Result<Handshake> {
-        let mut attempt = 0;
-        let stream = loop {
-            match TcpStream::connect(&addrs).await {
-                Ok(s) => break s,
-                Err(e) => {
-                    tracing::error!(
-                        "connecting to address `{:?}` failed, attempt {} starting",
-                        addrs,
-                        attempt
-                    );
-                    crate::io::sleep(std::time::Duration::from_millis(time_to_retry)).await;
-                    attempt += 1;
-                    if attempt == retries {
-                        err!((e))?
-                    }
-                    continue;
-                }
-            }
-        };
-        Ok(Handshake::from(Channel::from_tcp_raw(
+        let stream = TcpStream::connect(&addrs).await?;
+        Ok(Handshake::from(Channel::from_raw(
             stream,
             Default::default(),
             Default::default(),
         )))
-    }
-    #[inline]
-    /// Connect to the following address with the following id. Defaults to 3 retries.
-    pub async fn connect(addrs: impl ToSocketAddrs + std::fmt::Debug) -> Result<Handshake> {
-        Self::connect_retry(addrs, 3, 10).await
     }
     #[inline]
     /// Connect to the following address with the given id and retry in case of failure
-    pub async fn connect_retry(
-        addrs: impl ToSocketAddrs + std::fmt::Debug,
-        retries: u32,
-        time_to_retry: u64,
-    ) -> Result<Handshake> {
-        Self::raw_connect_with_retries(&addrs, retries, time_to_retry).await
+    pub async fn connect(addrs: impl ToSocketAddrs + std::fmt::Debug) -> Result<Handshake> {
+        let hs = backoff::future::retry(ExponentialBackoff::default(), || async {
+            let stream = TcpStream::connect(&addrs).await?;
+            Ok(Handshake::from(Channel::from_raw(
+                stream,
+                Default::default(),
+                Default::default(),
+            )))
+        })
+        .await?;
+        Ok(hs)
     }
 }

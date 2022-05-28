@@ -1,10 +1,10 @@
 use derive_more::From;
 use futures::{SinkExt, StreamExt};
 use serde::{de::DeserializeOwned, Serialize};
-use tungstenite::Message;
 
 use crate::channel::raw::bipartite::receive_channel::UnformattedRawReceiveChannel;
 use crate::channel::raw::bipartite::send_channel::UnformattedRawSendChannel;
+use crate::io::Message;
 #[cfg(not(target_arch = "wasm32"))]
 use crate::io::TcpStream;
 #[cfg(unix)]
@@ -27,6 +27,9 @@ pub enum RefUnformattedRawUnifiedChannel<'a> {
     Unix(&'a mut UnixStream),
     /// wss backend
     Wss(&'a mut Wss),
+    #[cfg(all(not(target_arch = "wasm32"), feature = "quic"))]
+    /// quic backend
+    Quic(&'a mut quinn::SendStream, &'a mut quinn::RecvStream),
 }
 
 #[derive(From)]
@@ -39,6 +42,8 @@ pub enum UnformattedRawUnifiedChannel {
     Unix(UnixStream),
     /// wss backend
     Wss(Box<Wss>), // boxed since it's heavy and would weigh down other variants
+    #[cfg(all(not(target_arch = "wasm32"), feature = "quic"))]
+    Quic(quinn::SendStream, quinn::RecvStream),
 }
 
 impl UnformattedRawUnifiedChannel {
@@ -47,16 +52,22 @@ impl UnformattedRawUnifiedChannel {
     }
     pub fn split(self) -> (UnformattedRawSendChannel, UnformattedRawReceiveChannel) {
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
             UnformattedRawUnifiedChannel::Tcp(stream) => {
                 let (read, write) = stream.into_split();
                 (From::from(write), From::from(read))
             }
+            #[cfg(unix)]
             UnformattedRawUnifiedChannel::Unix(stream) => {
                 let (read, write) = stream.into_split();
                 (From::from(write), From::from(read))
             }
             UnformattedRawUnifiedChannel::Wss(stream) => {
                 let (write, read) = stream.split();
+                (From::from(write), From::from(read))
+            }
+            #[cfg(all(not(target_arch = "wasm32"), feature = "quic"))]
+            UnformattedRawUnifiedChannel::Quic(write, read) => {
                 (From::from(write), From::from(read))
             }
         }
@@ -84,11 +95,15 @@ impl<'a> From<&'a mut UnformattedRawUnifiedChannel> for RefUnformattedRawUnified
     #[inline]
     fn from(chan: &'a mut UnformattedRawUnifiedChannel) -> Self {
         match chan {
+            #[cfg(not(target_arch = "wasm32"))]
             UnformattedRawUnifiedChannel::Tcp(ref mut chan) => chan.into(),
+            #[cfg(unix)]
             UnformattedRawUnifiedChannel::Unix(ref mut chan) => chan.into(),
             UnformattedRawUnifiedChannel::Wss(ref mut chan) => {
                 RefUnformattedRawUnifiedChannel::Wss(chan)
             }
+            #[cfg(all(not(target_arch = "wasm32"), feature = "quic"))]
+            UnformattedRawUnifiedChannel::Quic(ref mut tx, ref mut rx) => From::from((tx, rx)),
         }
     }
 }
@@ -99,15 +114,32 @@ impl<'a> RefUnformattedRawUnifiedChannel<'a> {
         obj: T,
         format: &mut F,
     ) -> Result<usize> {
+        #[allow(unused)]
         use crate::serialization::tx;
         match self {
+            #[cfg(not(target_arch = "wasm32"))]
             Self::Tcp(st) => tx(st, obj, format).await,
+            #[cfg(unix)]
             Self::Unix(st) => tx(st, obj, format).await,
+            #[cfg(all(not(target_arch = "wasm32"), feature = "quic"))]
+            Self::Quic(st, _) => tx(st, obj, format).await,
             Self::Wss(st) => {
                 let buf = format.serialize(&obj).map_err(err!(@invalid_data))?;
                 let len = buf.len();
-                let item = Message::Binary(buf);
-                st.send(item).await.map_err(err!(@other))?;
+
+                // use tungstenite for native
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let item = Message::Binary(buf);
+                    st.send(item).await.map_err(err!(@other))?;
+                };
+
+                // use reqwasm for wasm
+                #[cfg(target_arch = "wasm32")]
+                {
+                    let item = Message::Bytes(buf);
+                    st.send(item).await.map_err(|e| err!(e.to_string()))?;
+                };
                 Ok(len)
             }
         }
@@ -116,6 +148,7 @@ impl<'a> RefUnformattedRawUnifiedChannel<'a> {
         &mut self,
         format: &mut F,
     ) -> Result<T> {
+        #[allow(unused)]
         use crate::serialization::{rx, wss_rx};
         match self {
             #[cfg(not(target_arch = "wasm32"))]
@@ -123,6 +156,8 @@ impl<'a> RefUnformattedRawUnifiedChannel<'a> {
             #[cfg(unix)]
             Self::Unix(st) => rx(st, format).await,
             Self::Wss(st) => wss_rx(st, format).await,
+            #[cfg(all(not(target_arch = "wasm32"), feature = "quic"))]
+            Self::Quic(_, st) => rx(st, format).await,
         }
     }
     pub fn as_formatted<F>(&'a mut self, format: F) -> RefRawUnifiedChannel<'a, F> {

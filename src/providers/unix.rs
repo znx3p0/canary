@@ -3,7 +3,7 @@
 
 use std::path::Path;
 
-use crate::channel::Handshake;
+use crate::channel::handshake::Handshake;
 use crate::err;
 use crate::io::UnixListener;
 use crate::io::UnixStream;
@@ -33,9 +33,12 @@ impl Unix {
     /// }
     /// ```
     pub async fn next(&self) -> Result<Handshake> {
-        let (chan, _) = self.0.accept().await?;
-        let chan: Channel = Channel::from(chan);
-        Ok(Handshake::from(chan))
+        let (raw, _) = self.0.accept().await?;
+        Ok(Handshake::from(Channel::from_raw(
+            raw,
+            Default::default(),
+            Default::default(),
+        )))
     }
     #[inline]
     /// connect to the following address without discovery
@@ -45,7 +48,7 @@ impl Unix {
         time_to_retry: u64,
     ) -> Result<Handshake> {
         let mut attempt = 0;
-        let stream = loop {
+        let raw = loop {
             match UnixStream::connect(&addrs).await {
                 Ok(s) => break s,
                 Err(e) => {
@@ -63,8 +66,11 @@ impl Unix {
                 }
             }
         };
-        let chan = Channel::from(stream);
-        Ok(Handshake::from(chan))
+        Ok(Handshake::from(Channel::from_raw(
+            raw,
+            Default::default(),
+            Default::default(),
+        )))
     }
     #[inline]
     /// connect to the following address with the following id. Defaults to 3 retries.

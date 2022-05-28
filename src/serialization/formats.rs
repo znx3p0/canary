@@ -4,11 +4,11 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::err;
 
-#[derive(Serialize_repr, Deserialize_repr, Clone)]
+#[derive(Serialize_repr, Deserialize_repr, Clone, Copy)]
 #[repr(u8)]
 /// formats allowed for channels
 pub enum Format {
-    /// the bincode serialization format
+    /// the Bincode serialization format
     Bincode = 1,
     #[cfg(feature = "json_ser")]
     /// the JSON serialization format
@@ -20,6 +20,7 @@ pub enum Format {
     /// the Postcard serialization format
     Postcard = 4,
     #[cfg(feature = "messagepack_ser")]
+    /// the MessagePack serialization format
     MessagePack = 5,
 }
 
@@ -35,12 +36,12 @@ impl SendFormat for Format {
             Format::Bincode => Bincode.serialize(obj),
             #[cfg(feature = "json_ser")]
             Format::Json => Json.serialize(obj),
-            #[cfg(feature = "bson_ser")]
-            Format::Bson => Bson.serialize(obj),
             #[cfg(feature = "postcard_ser")]
             Format::Postcard => Postcard.serialize(obj),
             #[cfg(feature = "messagepack_ser")]
             Format::MessagePack => MessagePack.serialize(obj),
+            #[cfg(feature = "bson_ser")]
+            Format::Bson => todo!(),
         }
     }
 }
@@ -54,12 +55,12 @@ impl ReadFormat for Format {
             Format::Bincode => Bincode.deserialize(bytes),
             #[cfg(feature = "json_ser")]
             Format::Json => Json.deserialize(bytes),
-            #[cfg(feature = "bson_ser")]
-            Format::Bson => Bson.deserialize(bytes),
             #[cfg(feature = "postcard_ser")]
             Format::Postcard => Postcard.deserialize(bytes),
             #[cfg(feature = "messagepack_ser")]
             Format::MessagePack => MessagePack.deserialize(bytes),
+            #[cfg(feature = "bson_ser")]
+            Format::Bson => todo!(),
         }
     }
 }
@@ -70,9 +71,8 @@ pub struct Bincode;
 #[cfg(feature = "json_ser")]
 /// JSON serialization format
 pub struct Json;
-
-/// BSON serialization format
 #[cfg(feature = "bson_ser")]
+/// Postcard serialization format
 pub struct Bson;
 
 #[cfg(feature = "postcard_ser")]
@@ -107,7 +107,7 @@ impl SendFormat for Bincode {
             .allow_trailing_bytes()
             .serialize(obj)
             .map_err(err!(@invalid_data))?;
-        Ok(obj)
+        Ok(obj.into())
     }
 }
 impl ReadFormat for Bincode {
@@ -130,6 +130,7 @@ impl SendFormat for Json {
         serde_json::to_vec(obj).map_err(err!(@invalid_data))
     }
 }
+
 #[cfg(feature = "json_ser")]
 impl ReadFormat for Json {
     #[inline]
@@ -140,13 +141,15 @@ impl ReadFormat for Json {
         serde_json::from_slice(bytes).map_err(err!(@invalid_data))
     }
 }
+
 #[cfg(feature = "bson_ser")]
 impl SendFormat for Bson {
     #[inline]
     fn serialize<O: Serialize>(&mut self, obj: &O) -> crate::Result<Vec<u8>> {
-        bson::ser::to_vec(obj).map_err(err!(@invalid_data))
+        bson::to_vec(obj).map_err(err!(@invalid_data))
     }
 }
+
 #[cfg(feature = "bson_ser")]
 impl ReadFormat for Bson {
     #[inline]
@@ -154,7 +157,7 @@ impl ReadFormat for Bson {
     where
         T: serde::de::DeserializeOwned,
     {
-        bson::de::from_slice(bytes).map_err(err!(@invalid_data))
+        bson::from_slice(bytes).map_err(err!(@invalid_data))
     }
 }
 #[cfg(feature = "postcard_ser")]

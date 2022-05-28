@@ -8,7 +8,7 @@ use crate::channel::raw::bipartite::send_channel::UnformattedRawSendChannel;
 use crate::channel::raw::unified::unformatted::{
     RefUnformattedRawUnifiedChannel, UnformattedRawUnifiedChannel,
 };
-use crate::serialization::formats::{Format, ReadFormat, SendFormat};
+use crate::serialization::formats::{ReadFormat, SendFormat};
 use crate::Result;
 
 use super::super::bipartite::bidirectional::RefUnformattedRawBidirectionalChannel;
@@ -25,17 +25,17 @@ pub enum UnformattedRawChannel {
     Bipartite(UnformattedRawBidirectionalChannel),
 }
 
-#[derive(From)]
-pub struct RefRawChannel<'a, F = Format> {
-    channel: RefUnformattedRawChannel<'a>,
-    format: F,
-}
+// #[derive(From)]
+// pub struct RefRawChannel<'a, F = Format> {
+//     channel: RefUnformattedRawChannel<'a>,
+//     format: F,
+// }
 
-#[derive(From)]
-pub struct RawChannel<F = Format> {
-    channel: UnformattedRawChannel,
-    format: F,
-}
+// #[derive(From)]
+// pub struct RawChannel<F = Format> {
+//     channel: UnformattedRawChannel,
+//     format: F,
+// }
 
 impl<'a> From<&'a mut UnformattedRawChannel> for RefUnformattedRawChannel<'a> {
     fn from(chan: &'a mut UnformattedRawChannel) -> Self {
@@ -70,12 +70,12 @@ impl<'a> RefUnformattedRawChannel<'a> {
             Self::Bipartite(chan) => chan.receive(format).await,
         }
     }
-    pub fn to_formatted<F>(self, format: F) -> RefRawChannel<'a, F> {
-        RefRawChannel {
-            channel: self,
-            format,
-        }
-    }
+    // pub fn to_formatted<F>(self, format: F) -> RefRawChannel<'a, F> {
+    //     RefRawChannel {
+    //         channel: self,
+    //         format,
+    //     }
+    // }
 }
 
 impl UnformattedRawChannel {

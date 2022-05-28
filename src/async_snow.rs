@@ -12,10 +12,6 @@ pub trait Encrypt {
     fn encrypt_packets(&mut self, buf: Vec<u8>) -> Result<Vec<u8>>;
 }
 
-// // returns an error if length of buf is greater than the packet length
-// fn encrypt_packet(&mut self, buf: &[u8]) -> Result<Vec<u8>>;
-// fn encrypt_packet_raw(&mut self, buf: &[u8], msg: &mut [u8]) -> Result;
-
 pub trait Decrypt {
     fn decrypt(&mut self, buf: &[u8]) -> Result<Vec<u8>>;
 }
@@ -29,7 +25,7 @@ impl RefDividedSnow<'_> {
         self.encrypt_packet_raw(buf, &mut msg)?;
         Ok(msg)
     }
-    fn encrypt_packet_raw(&mut self, buf: &[u8], mut msg: &mut [u8]) -> Result {
+    fn encrypt_packet_raw(&mut self, buf: &[u8], mut msg: &mut [u8]) -> Result<()> {
         // encrypt into message buffer
         let nonce = self.nonce.wrapping_add(1) as _;
         self.transport
@@ -112,7 +108,6 @@ pub(crate) async fn initialize_initiator(
     chan: &mut Channel,
     noise_params: NoiseParams,
 ) -> Result<StatelessTransportState> {
-
     let mut initiator = snow::Builder::new(noise_params)
         .build_initiator()
         .map_err(err!(@other))?;

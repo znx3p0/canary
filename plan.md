@@ -26,6 +26,7 @@ bidirectional
 ------  bipartite
 
 bidirectional -
+
 - `Channel` implemented with `RefChannel`
 - `RefChannel` implemented with `RefUnformattedChannel`
 
@@ -48,8 +49,6 @@ receive
 - `UnformattedReceiveChannel` implemented with `RefUnformattedReceiveChannel`
 - `RefUnformattedReceiveChannel` implemented from scratch
 
-
-
 Following changes:
-- use `Bytes` instead of `Vec<u8>` since it has much better performance
 
+- use `Bytes` and `BytesMut` instead of `Vec<u8>` since it has much better performance

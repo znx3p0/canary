@@ -98,46 +98,65 @@ impl Serialize for Addr {
         S: serde::Serializer,
     {
         // this is done to avoid the unnecessary string allocation
-
-        // let string: String = self.into();
-        // serializer.serialize_str(&string)
-        match self {
-            Addr::Tcp(addr) => {
-                let mut seq = serializer.serialize_seq(Some(2))?;
-                seq.serialize_element("tcp@")?;
-                seq.serialize_element(&addr.to_string())?;
-                seq.end()
+        if serializer.is_human_readable() {
+            match self {
+                Addr::Tcp(addr) => {
+                    let mut seq = serializer.serialize_seq(Some(2))?;
+                    seq.serialize_element("tcp@")?;
+                    seq.serialize_element(&addr.to_string())?;
+                    seq.end()
+                }
+                Addr::Unix(addr) => {
+                    let mut seq = serializer.serialize_seq(Some(2))?;
+                    seq.serialize_element("unix@")?;
+                    seq.serialize_element(&addr.to_string_lossy())?;
+                    seq.end()
+                }
+                Addr::InsecureTcp(addr) => {
+                    let mut seq = serializer.serialize_seq(Some(2))?;
+                    seq.serialize_element("itcp@")?;
+                    seq.serialize_element(&addr.to_string())?;
+                    seq.end()
+                }
+                Addr::InsecureUnix(addr) => {
+                    let mut seq = serializer.serialize_seq(Some(2))?;
+                    seq.serialize_element("iunix@")?;
+                    seq.serialize_element(&addr.to_string_lossy())?;
+                    seq.end()
+                }
+                Addr::Wss(addr) => {
+                    let mut seq = serializer.serialize_seq(Some(2))?;
+                    seq.serialize_element("wss@")?;
+                    seq.serialize_element(addr.as_str())?;
+                    seq.end()
+                }
+                Addr::InsecureWss(addr) => {
+                    let mut seq = serializer.serialize_seq(Some(2))?;
+                    seq.serialize_element("ws@")?;
+                    seq.serialize_element(addr.as_str())?;
+                    seq.end()
+                }
             }
-            Addr::Unix(addr) => {
-                let mut seq = serializer.serialize_seq(Some(2))?;
-                seq.serialize_element("unix@")?;
-                seq.serialize_element(&addr.to_string_lossy())?;
-                seq.end()
-            }
-            Addr::InsecureTcp(addr) => {
-                let mut seq = serializer.serialize_seq(Some(2))?;
-                seq.serialize_element("itcp@")?;
-                seq.serialize_element(&addr.to_string())?;
-                seq.end()
-            }
-            Addr::InsecureUnix(addr) => {
-                let mut seq = serializer.serialize_seq(Some(2))?;
-                seq.serialize_element("iunix@")?;
-                seq.serialize_element(&addr.to_string_lossy())?;
-                seq.end()
-            }
-            Addr::Wss(addr) => {
-                let mut seq = serializer.serialize_seq(Some(2))?;
-                seq.serialize_element("wss@")?;
-                seq.serialize_element(addr.as_str())?;
-                seq.end()
-            }
-            Addr::InsecureWss(addr) => {
-                let mut seq = serializer.serialize_seq(Some(2))?;
-                seq.serialize_element("ws@")?;
-                seq.serialize_element(addr.as_str())?;
-                seq.end()
-            }
+        } else {
+            let addr_ty = match &self {
+                Addr::Tcp(_) => AddressType::Tcp,
+                Addr::Unix(_) => AddressType::Unix,
+                Addr::InsecureTcp(_) => AddressType::InsecureTcp,
+                Addr::InsecureUnix(_) => AddressType::InsecureUnix,
+                Addr::Wss(_) => AddressType::Wss,
+                Addr::InsecureWss(_) => AddressType::InsecureWss,
+            };
+            let mut ser = serializer.serialize_seq(Some(2))?;
+            ser.serialize_element(&addr_ty)?;
+            match self {
+                Addr::Tcp(addr) => ser.serialize_element(addr)?,
+                Addr::Unix(addr) => ser.serialize_element(addr)?,
+                Addr::InsecureTcp(addr) => ser.serialize_element(addr)?,
+                Addr::InsecureUnix(addr) => ser.serialize_element(addr)?,
+                Addr::Wss(addr) => ser.serialize_element(addr)?,
+                Addr::InsecureWss(addr) => ser.serialize_element(addr)?,
+            };
+            ser.end()
         }
     }
 }
@@ -166,8 +185,8 @@ impl Addr {
         cfg_if! {
             if #[cfg(target_arch = "wasm32")] {
                 match self {
-                    Addr::Wss(addrs) => Wss::connect(addrs.as_str()).await?.encrypted().await,
-                    Addr::InsecureWss(addrs) => Ok(Wss::connect(addrs.as_str()).await?.raw()),
+                    Addr::Wss(addrs) => WebSocket::connect(addrs.as_str()).await?.encrypted().await,
+                    Addr::InsecureWss(addrs) => Ok(WebSocket::connect(addrs.as_str()).await?.raw()),
                     Addr::Tcp(_) | Addr::InsecureTcp(_) => err!((
                         unsupported,
                         "connecting to tcp providers is not supported on wasm"
@@ -190,8 +209,8 @@ impl Addr {
                 match self {
                     Addr::Tcp(addrs) => Tcp::connect(addrs.as_ref()).await?.encrypted().await,
                     Addr::InsecureTcp(addrs) => Ok(Tcp::connect(addrs.as_ref()).await?.raw()),
-                    Addr::Wss(addrs) => Wss::connect(addrs.as_str()).await?.encrypted().await,
-                    Addr::InsecureWss(addrs) => Ok(Wss::connect(addrs.as_str()).await?.raw()),
+                    Addr::Wss(addrs) => WebSocket::connect(addrs.as_str()).await?.encrypted().await,
+                    Addr::InsecureWss(addrs) => Ok(WebSocket::connect(addrs.as_str()).await?.raw()),
 
                     Addr::Unix(_) | Addr::InsecureUnix(_) => err!((
                         unsupported,
@@ -287,19 +306,20 @@ impl FromStr for Addr {
 }
 
 #[derive(Serialize, Deserialize)]
+#[repr(u8)]
 enum AddressType {
     #[serde(rename = "tcp")]
-    Tcp,
+    Tcp = 0,
     #[serde(rename = "itcp")]
-    InsecureTcp,
+    InsecureTcp = 1,
     #[serde(rename = "unix")]
-    Unix,
+    Unix = 2,
     #[serde(rename = "iunix")]
-    InsecureUnix,
+    InsecureUnix = 3,
     #[serde(rename = "wss")]
-    Wss,
+    Wss = 4,
     #[serde(rename = "ws")]
-    InsecureWss,
+    InsecureWss = 5,
 }
 
 impl FromStr for AddressType {

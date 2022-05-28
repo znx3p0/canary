@@ -1,25 +1,29 @@
 use crate::Result;
 
-use crate::channel::Handshake;
+use crate::channel::handshake::Handshake;
 use crate::err;
 use crate::Channel;
-use cfg_if::cfg_if;
 
-use crate::channel::Wss;
+use cfg_if::cfg_if;
 
 cfg_if! {
     if #[cfg(not(target_arch = "wasm32"))] {
         use crate::io::{TcpListener, ToSocketAddrs};
         use crate::io::wss;
+        use backoff::ExponentialBackoff;
+    } else {
+        use crate::io::Wss;
     }
 }
 
-use derive_more::{From, Into};
-
-#[derive(From, Into)]
+#[cfg(not(target_arch = "wasm32"))]
+#[derive(derive_more::From, derive_more::Into)]
 #[into(owned, ref, ref_mut)]
 /// Websocket Provider
-pub struct WebSocket(#[cfg(not(target_arch = "wasm32"))] TcpListener);
+pub struct WebSocket(TcpListener);
+
+#[cfg(target_arch = "wasm32")]
+pub struct WebSocket;
 
 #[cfg(not(target_arch = "wasm32"))]
 impl WebSocket {
@@ -39,77 +43,60 @@ impl WebSocket {
     /// ```
     pub async fn next(&self) -> Result<Handshake> {
         let (chan, _) = self.0.accept().await?;
-        let chan = wss::tokio::accept_async(chan)
+        let raw = wss::tokio::accept_async(chan)
             .await // this future doesn't suspend, hence why this await point is not delegated upwards.
             .map_err(|e| err!(e))?;
-        let chan: Channel = Channel::from(chan);
-        Ok(Handshake::from(chan))
+        let raw = Box::new(raw);
+        Ok(Handshake::from(Channel::from_raw(
+            raw,
+            Default::default(),
+            Default::default(),
+        )))
     }
-    #[inline]
-    /// connect to the following address without discovery
-    pub async fn inner_connect(
+
+    pub async fn connect_no_backoff(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
-        retries: u32,
-        time_to_retry: u64,
-    ) -> Result<Wss> {
-        let mut attempt = 0;
+    ) -> Result<Handshake> {
         let addrs = tokio::net::lookup_host(&addrs)
             .await
             .map_err(|e| err!(e))?
             .next()
             .ok_or(err!("no endpoint found"))?;
-        let stream = loop {
-            match wss::tokio::connect_async(&format!("ws://{}", &addrs)).await {
-                Ok((client, _)) => {
-                    break client;
-                }
-                Err(e) => {
-                    tracing::error!(
-                        "connecting to address `{:?}` failed, attempt {} starting",
-                        addrs.to_string(),
-                        attempt
-                    );
-                    crate::io::sleep(std::time::Duration::from_millis(time_to_retry)).await;
-                    attempt += 1;
-                    if attempt == retries {
-                        err!((e))?
-                    }
-                    continue;
-                }
-            }
-        };
-        Ok(stream)
+        let (raw, _) = wss::tokio::connect_async(&format!("ws://{}", &addrs))
+            .await
+            .map_err(err!(@other))?;
+        let raw = Box::new(raw);
+        Ok(Handshake::from(Channel::from_raw(
+            raw,
+            Default::default(),
+            Default::default(),
+        )))
     }
-
     #[inline]
-    /// connect to the following address without discovery
-    pub async fn raw_connect_with_retries(
-        addrs: impl ToSocketAddrs + std::fmt::Debug,
-        retries: u32,
-        time_to_retry: u64,
-    ) -> Result<Handshake> {
-        let stream = Self::inner_connect(addrs, retries, time_to_retry).await?;
-        let chan = Channel::from(stream);
-        Ok(Handshake::from(chan))
-    }
-
-    #[inline]
-    /// connect to the following address with the following id. Defaults to 3 retries.
+    /// Connect to the following address with the given id and retry in case of failure
     pub async fn connect(addrs: impl ToSocketAddrs + std::fmt::Debug) -> Result<Handshake> {
-        Self::connect_retry(addrs, 3, 10).await
-    }
-    #[inline]
-    /// connect to the following address with the given id and retry in case of failure
-    pub async fn connect_retry(
-        addrs: impl ToSocketAddrs + std::fmt::Debug,
-        retries: u32,
-        time_to_retry: u64,
-    ) -> Result<Handshake> {
-        Self::raw_connect_with_retries(&addrs, retries, time_to_retry).await
+        let addrs = tokio::net::lookup_host(&addrs)
+            .await
+            .map_err(|e| err!(e))?
+            .next()
+            .ok_or(err!("no endpoint found"))?;
+        let hs = backoff::future::retry(ExponentialBackoff::default(), || async {
+            let (raw, _) = wss::tokio::connect_async(&format!("ws://{}", &addrs))
+                .await
+                .map_err(err!(@other))?;
+            let raw = Box::new(raw);
+            Ok(Handshake::from(Channel::from_raw(
+                raw,
+                Default::default(),
+                Default::default(),
+            )))
+        })
+        .await?;
+        Ok(hs)
     }
 }
 #[cfg(target_arch = "wasm32")]
-impl Wss {
+impl WebSocket {
     #[inline]
     /// connect to the following address without discovery
     pub async fn inner_connect(addrs: &str, retries: u32, time_to_retry: u64) -> Result<Wss> {
@@ -148,9 +135,13 @@ impl Wss {
         retries: u32,
         time_to_retry: u64,
     ) -> Result<Handshake> {
-        let stream = Self::inner_connect(addrs, retries, time_to_retry).await?;
-        let chan = Channel::from(stream);
-        Ok(Handshake::from(chan))
+        let raw = Self::inner_connect(addrs, retries, time_to_retry).await?;
+        let raw = Box::new(raw);
+        Ok(Handshake::from(Channel::from_raw(
+            raw,
+            Default::default(),
+            Default::default(),
+        )))
     }
     #[inline]
     /// connect to the following address with the following id. Defaults to 3 retries.

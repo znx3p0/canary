@@ -51,11 +51,10 @@ impl<R, W> BipartiteChannel<R, W> {
                 return this;
             }
 
-            if let Err(_) = this.send_channel.encrypt(transport.clone()) {
+            if let Err(_) = this.receive_channel.encrypt(transport.clone()) {
                 state = Err(transport);
                 return this;
             }
-
             this
         });
         state

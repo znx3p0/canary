@@ -8,7 +8,7 @@ use futures::{pin_mut, select, stream::FuturesUnordered, FutureExt};
 use super::Tcp;
 #[cfg(unix)]
 use super::Unix;
-use crate::channel::Handshake;
+use crate::channel::handshake::Handshake;
 use crate::Channel;
 use crate::Result;
 

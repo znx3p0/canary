@@ -5,16 +5,16 @@ import os
 
 def check(args):
     try:
-        os.system(f"mold -run cargo check {args}")
+        os.system(f"cargo check {args}")
     except Exception as e:
         print(e)
         exit(1)
 
 for target in  [
     "--target=wasm32-unknown-unknown",
-    # "--target=x86_64-pc-windows-gnu",
-    # "--target=x86_64-unknown-linux-gnu",
-    # "--target=x86_64-apple-darwin",
+    "--target=x86_64-pc-windows-msvc",
+    "--target=x86_64-unknown-linux-gnu",
+    "--target=x86_64-apple-darwin",
     "",
 ]:
     for feature in [

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use derive_more::From;
 use serde::{de::DeserializeOwned, Serialize};
 use snow::StatelessTransportState;
@@ -65,24 +67,26 @@ impl<'a, R, W> RefChannel<'a, R, W> {
 }
 
 impl<R, W> Channel<R, W> {
-    pub(crate) fn from_tcp_raw(
-        tcp: crate::io::TcpStream,
+    pub(crate) fn from_raw(
+        raw: impl Into<UnformattedRawUnifiedChannel>,
         receive_format: R,
         send_format: W,
     ) -> Self {
         Self::Unified(UnifiedChannel {
-            channel: UnformattedUnifiedChannel::Raw(From::from(tcp)),
+            channel: UnformattedUnifiedChannel::Raw(raw.into()),
             receive_format,
             send_format,
         })
     }
-    pub(crate) fn encrypt(
+
+    /// returns error if the channel is already encrypted
+    pub fn encrypt(
         &mut self,
         transport: StatelessTransportState,
-    ) -> Result<(), StatelessTransportState> {
+    ) -> Result<(), Arc<StatelessTransportState>> {
         match self {
-            Channel::Unified(unified) => unified.encrypt(transport),
-            Channel::Bipartite(bipartite) => todo!(),
+            Channel::Unified(unified) => unified.encrypt(transport).map_err(Arc::new),
+            Channel::Bipartite(bipartite) => bipartite.encrypt(Arc::new(transport)),
         }
     }
 

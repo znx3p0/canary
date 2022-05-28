@@ -16,6 +16,9 @@ pub enum RefUnformattedRawReceiveChannel<'a> {
     Unix(&'a mut tokio::net::unix::OwnedReadHalf),
     /// unencrypted wss backend
     WSS(&'a mut SplitStream<Box<Wss>>),
+    #[cfg(all(not(target_arch = "wasm32"), feature = "quic"))]
+    /// unencrypted quic backend
+    Quic(&'a mut quinn::RecvStream),
 }
 
 #[derive(From)]
@@ -29,6 +32,11 @@ pub enum UnformattedRawReceiveChannel {
     Unix(tokio::net::unix::OwnedReadHalf),
     /// unencrypted wss backend
     WSS(SplitStream<Box<Wss>>),
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(feature = "quic")]
+    /// unencrypted quic backend
+    Quic(quinn::RecvStream),
 }
 
 #[derive(From)]
@@ -48,12 +56,15 @@ impl<'a> RefUnformattedRawReceiveChannel<'a> {
         &mut self,
         format: &mut F,
     ) -> Result<T> {
+        #[allow(unused)]
         use crate::serialization::{rx, wss_rx};
         match self {
             #[cfg(not(target_arch = "wasm32"))]
             RefUnformattedRawReceiveChannel::Tcp(st) => rx(st, format).await,
             #[cfg(unix)]
             RefUnformattedRawReceiveChannel::Unix(st) => rx(st, format).await,
+            #[cfg(all(not(target_arch = "wasm32"), feature = "quic"))]
+            RefUnformattedRawReceiveChannel::Quic(st) => rx(st, format).await,
             RefUnformattedRawReceiveChannel::WSS(st) => wss_rx(st, format).await,
         }
     }
@@ -69,9 +80,14 @@ impl<'a> From<&'a mut UnformattedRawReceiveChannel> for RefUnformattedRawReceive
     #[inline]
     fn from(chan: &'a mut UnformattedRawReceiveChannel) -> Self {
         match chan {
+            #[cfg(not(target_arch = "wasm32"))]
             UnformattedRawReceiveChannel::Tcp(ref mut chan) => chan.into(),
+            #[cfg(unix)]
             UnformattedRawReceiveChannel::Unix(ref mut chan) => chan.into(),
             UnformattedRawReceiveChannel::WSS(ref mut chan) => chan.into(),
+            #[cfg(not(target_arch = "wasm32"))]
+            #[cfg(feature = "quic")]
+            UnformattedRawReceiveChannel::Quic(ref mut chan) => chan.into(),
         }
     }
 }

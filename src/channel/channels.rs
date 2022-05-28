@@ -10,3 +10,15 @@ pub type RefSendChannel<'a, F = Format> = send_channel::RefSendChannel<'a, F>;
 
 pub type ReceiveChannel<F = Format> = receive_channel::ReceiveChannel<F>;
 pub type RefReceiveChannel<'a, F = Format> = receive_channel::RefReceiveChannel<'a, F>;
+
+// this will allow channels to abstract over any type that can receive or send bytes.
+
+// #[async_trait]
+// trait Sender {
+//     async fn send(&mut self, obj: Bytes) -> Result<()>;
+// }
+
+// #[async_trait]
+// trait Receiver {
+//     async fn receive(&mut self) -> Result<Bytes>;
+// }
