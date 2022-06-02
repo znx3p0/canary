@@ -2,6 +2,7 @@ use crate::{err, Error};
 use crate::{Channel, Result};
 use cfg_if::cfg_if;
 use compact_str::CompactString;
+use serde::de::Visitor;
 use serde::ser::SerializeSeq;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -163,12 +164,66 @@ impl Serialize for Addr {
 
 impl<'de> Deserialize<'de> for Addr {
     #[inline]
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let string: CompactString = CompactString::deserialize(deserializer)?;
-        Addr::from_str(&string).map_err(serde::de::Error::custom)
+        if deserializer.is_human_readable() {
+            let string: CompactString = CompactString::deserialize(deserializer)?;
+            Addr::from_str(&string).map_err(serde::de::Error::custom)
+        } else {
+            struct AddrVisitor;
+            let visitor = AddrVisitor;
+            impl<'de> Visitor<'de> for AddrVisitor {
+                type Value = Addr;
+
+                fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                    write!(formatter, "AddrVisitor")
+                }
+                fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                where
+                    A: serde::de::SeqAccess<'de>,
+                {
+                    let addr_ty =
+                        seq.next_element::<AddressType>()?
+                            .ok_or(serde::de::Error::custom(
+                                "expected AddressType, found nothing",
+                            ))?;
+                    use AddressType::*;
+                    Ok(match addr_ty {
+                        Tcp => seq
+                            .next_element()?
+                            .and_then(|addr| Some(Addr::Tcp(addr)))
+                            .ok_or(serde::de::Error::custom(
+                                "expected SocketAddr, found nothing",
+                            ))?,
+                        InsecureTcp => seq
+                            .next_element()?
+                            .and_then(|addr| Some(Addr::InsecureTcp(addr)))
+                            .ok_or(serde::de::Error::custom(
+                                "expected SocketAddr, found nothing",
+                            ))?,
+                        Unix => seq
+                            .next_element()?
+                            .and_then(|addr| Some(Addr::Unix(addr)))
+                            .ok_or(serde::de::Error::custom("expected Path, found nothing"))?,
+                        InsecureUnix => seq
+                            .next_element()?
+                            .and_then(|addr| Some(Addr::InsecureUnix(addr)))
+                            .ok_or(serde::de::Error::custom("expected Path, found nothing"))?,
+                        Wss => seq
+                            .next_element()?
+                            .and_then(|addr| Some(Addr::Wss(addr)))
+                            .ok_or(serde::de::Error::custom("expected String, found nothing"))?,
+                        InsecureWss => seq
+                            .next_element()?
+                            .and_then(|addr| Some(Addr::InsecureWss(addr)))
+                            .ok_or(serde::de::Error::custom("expected String, found nothing"))?,
+                    })
+                }
+            }
+            deserializer.deserialize_seq(visitor)
+        }
     }
 }
 
