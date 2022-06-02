@@ -98,46 +98,8 @@ impl Serialize for Addr {
     where
         S: serde::Serializer,
     {
-        // this is done to avoid the unnecessary string allocation
         if serializer.is_human_readable() {
-            match self {
-                Addr::Tcp(addr) => {
-                    let mut seq = serializer.serialize_seq(Some(2))?;
-                    seq.serialize_element("tcp@")?;
-                    seq.serialize_element(&addr.to_string())?;
-                    seq.end()
-                }
-                Addr::Unix(addr) => {
-                    let mut seq = serializer.serialize_seq(Some(2))?;
-                    seq.serialize_element("unix@")?;
-                    seq.serialize_element(&addr.to_string_lossy())?;
-                    seq.end()
-                }
-                Addr::InsecureTcp(addr) => {
-                    let mut seq = serializer.serialize_seq(Some(2))?;
-                    seq.serialize_element("itcp@")?;
-                    seq.serialize_element(&addr.to_string())?;
-                    seq.end()
-                }
-                Addr::InsecureUnix(addr) => {
-                    let mut seq = serializer.serialize_seq(Some(2))?;
-                    seq.serialize_element("iunix@")?;
-                    seq.serialize_element(&addr.to_string_lossy())?;
-                    seq.end()
-                }
-                Addr::Wss(addr) => {
-                    let mut seq = serializer.serialize_seq(Some(2))?;
-                    seq.serialize_element("wss@")?;
-                    seq.serialize_element(addr.as_str())?;
-                    seq.end()
-                }
-                Addr::InsecureWss(addr) => {
-                    let mut seq = serializer.serialize_seq(Some(2))?;
-                    seq.serialize_element("ws@")?;
-                    seq.serialize_element(addr.as_str())?;
-                    seq.end()
-                }
-            }
+            self.to_string().serialize(serializer)
         } else {
             let addr_ty = match &self {
                 Addr::Tcp(_) => AddressType::Tcp,
