@@ -61,6 +61,7 @@ impl<'a, F> RefRawChannel<'a, F> {
     {
         self.channel.receive(&mut self.format).await
     }
+    #[inline]
     /// Strip the format getting the inner channel
     pub fn to_unformatted(self) -> RefUnformattedRawChannel<'a> {
         self.channel
@@ -97,6 +98,7 @@ impl<F> RawChannel<F> {
     {
         self.channel.receive(&mut self.format).await
     }
+    #[inline]
     /// Strip the format getting the inner channel
     pub fn to_unformatted(self) -> UnformattedRawChannel {
         self.channel
@@ -144,6 +146,7 @@ impl<'a> RefUnformattedRawChannel<'a> {
             Self::Bipartite(chan) => chan.receive(format).await,
         }
     }
+    #[inline]
     /// Format the channel
     /// ```no_run
     /// let formatted = unformatted.to_formatted(Format::Bincode);

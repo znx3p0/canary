@@ -129,6 +129,7 @@ impl UnformattedRawSendChannel {
     pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, f: &mut F) -> Result<usize> {
         RefUnformattedRawSendChannel::from(self).send(obj, f).await
     }
+    #[inline]
     /// Format the channel
     /// ```no_run
     /// let formatted = unformatted.to_formatted(Format::Bincode);

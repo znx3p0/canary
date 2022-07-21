@@ -122,6 +122,7 @@ impl UnformattedRawReceiveChannel {
             .receive(format)
             .await
     }
+    #[inline]
     /// Format the channel
     /// ```no_run
     /// let formatted = unformatted.to_formatted(Format::Bincode);

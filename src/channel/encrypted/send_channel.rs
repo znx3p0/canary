@@ -75,6 +75,7 @@ impl<W> SendChannel<W> {
     pub fn is_encrypted(&self) -> bool {
         matches!(self.channel, UnformattedSendChannel::Encrypted(..))
     }
+    #[must_use]
     /// Join `Self` and a `SendChannel` into a bidirectional channel
     pub fn join<R>(self, receive: ReceiveChannel<R>) -> Channel<R, W> {
         Channel::join(self, receive)
@@ -152,6 +153,7 @@ impl UnformattedSendChannel {
         });
         state
     }
+    #[inline]
     /// Format the channel
     /// ```no_run
     /// let formatted = unformatted.to_formatted(Format::Bincode);

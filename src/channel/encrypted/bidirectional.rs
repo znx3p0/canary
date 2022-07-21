@@ -140,6 +140,7 @@ impl<R, W> Channel<R, W> {
             Channel::Bipartite(chan) => chan.receive().await,
         }
     }
+    #[must_use]
     /// Split channel into its send and receive components
     pub fn split(self) -> (SendChannel<W>, ReceiveChannel<R>) {
         match self {
@@ -244,18 +245,4 @@ impl UnformattedBidirectionalChannel {
             UnformattedBidirectionalChannel::Bipartite(chan) => chan.split(),
         }
     }
-    // pub(crate) fn encrypt(self, snow: Snow) -> Self {
-    //     match self {
-    //         Self::Raw(raw) => Self::Encrypted(raw, snow),
-    //         encrypted => encrypted, // silently ignore
-    //     }
-    // }
-
-    // /// Returns `true` if the unformatted bidirectional channel is [`Encrypted`].
-    // ///
-    // /// [`Encrypted`]: UnformattedBidirectionalChannel::Encrypted
-    // #[must_use]
-    // pub fn is_encrypted(&self) -> bool {
-    //     matches!(self, Self::Encrypted(..))
-    // }
 }

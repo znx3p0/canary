@@ -121,6 +121,7 @@ impl<F> RawBidirectionalChannel<F> {
     pub fn from_unformatted_with(chan: UnformattedRawBidirectionalChannel, format: F) -> Self {
         Self { chan, format }
     }
+    #[inline]
     /// Strip the format getting the inner channel
     pub fn to_unformatted(self) -> UnformattedRawBidirectionalChannel {
         self.chan
