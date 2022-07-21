@@ -28,14 +28,21 @@ pub struct WebSocket;
 #[cfg(not(target_arch = "wasm32"))]
 impl WebSocket {
     #[inline]
-    /// bind the global route on the given address
+    /// Bind to this address
+    /// ```no_run
+    /// let wss = WebSocket::bind("127.0.0.1:8080").await?;
+    /// while let Ok(chan) = wss.next().await {
+    ///     let mut chan = chan.encrypted().await?;
+    ///     chan.send("hello!").await?;
+    /// }
+    /// ```
     pub async fn bind(addrs: impl ToSocketAddrs) -> Result<Self> {
         let listener = TcpListener::bind(addrs).await?;
         Ok(WebSocket(listener))
     }
     #[inline]
     /// get the next channel
-    /// ```norun
+    /// ```no_run
     /// while let Ok(chan) = wss.next().await {
     ///     let mut chan = chan.encrypted().await?;
     ///     chan.send("hello!").await?;
@@ -54,6 +61,7 @@ impl WebSocket {
         )))
     }
 
+    /// connect to address without any backoff strategy
     pub async fn connect_no_backoff(
         addrs: impl ToSocketAddrs + std::fmt::Debug,
     ) -> Result<Handshake> {
@@ -127,22 +135,6 @@ impl WebSocket {
         };
         Ok(stream)
     }
-
-    #[inline]
-    /// connect to the following address without discovery
-    pub async fn raw_connect_with_retries(
-        addrs: &str,
-        retries: u32,
-        time_to_retry: u64,
-    ) -> Result<Handshake> {
-        let raw = Self::inner_connect(addrs, retries, time_to_retry).await?;
-        let raw = Box::new(raw);
-        Ok(Handshake::from(Channel::from_raw(
-            raw,
-            Default::default(),
-            Default::default(),
-        )))
-    }
     #[inline]
     /// connect to the following address with the following id. Defaults to 3 retries.
     pub async fn connect(addrs: &str) -> Result<Handshake> {
@@ -151,6 +143,12 @@ impl WebSocket {
     #[inline]
     /// connect to the following address with the given id and retry in case of failure
     pub async fn connect_retry(addrs: &str, retries: u32, time_to_retry: u64) -> Result<Handshake> {
-        Self::raw_connect_with_retries(&addrs, retries, time_to_retry).await
+        let raw = Self::inner_connect(addrs, retries, time_to_retry).await?;
+        let raw = Box::new(raw);
+        Ok(Handshake::from(Channel::from_raw(
+            raw,
+            Default::default(),
+            Default::default(),
+        )))
     }
 }

@@ -23,8 +23,11 @@ use super::{
 };
 
 #[derive(From)]
+/// Reference unformatted bidirectional channel, may be encrypted
 pub enum RefUnformattedBidirectionalChannel<'a> {
+    /// Unencrypted channel
     Raw(RefUnformattedRawChannel<'a>),
+    /// Encrypted channel
     Encrypted(
         RefUnformattedRawChannel<'a>,
         &'a StatelessTransportState,
@@ -33,31 +36,49 @@ pub enum RefUnformattedBidirectionalChannel<'a> {
 }
 
 #[derive(From)]
+/// Unformatted bidirectional channel which may be unified or bipartite
 pub enum UnformattedBidirectionalChannel {
+    /// Channel has not been split
     Unified(UnformattedUnifiedChannel),
+    /// Channel has been split
     Bipartite(UnformattedBipartiteChannel),
 }
 
 #[derive(From)]
+/// Reference channel with formats, similar to `&Channel`
 pub struct RefChannel<'a, R = Format, W = Format> {
+    /// Inner channel
     channel: RefUnformattedBidirectionalChannel<'a>,
+    /// Inner receive format
     receive_format: R,
+    /// Inner send format
     send_format: W,
 }
 
 #[derive(From)]
+/// Channel with formats
 pub enum Channel<R = Format, W = Format> {
+    /// Channel has not been split
     Unified(UnifiedChannel<R, W>),
+    /// Channel has been split
     Bipartite(BipartiteChannel<R, W>),
 }
 
 impl<'a, R, W> RefChannel<'a, R, W> {
+    /// Send an object through the channel
+    /// ```no_run
+    /// chan.send("Hello world!").await?;
+    /// ```
     pub async fn send<T: Serialize>(&mut self, obj: T) -> Result<usize>
     where
         W: SendFormat,
     {
         self.channel.send(obj, &mut self.send_format).await
     }
+    /// Receive an object sent through the channel
+    /// ```no_run
+    /// let string: String = chan.receive().await?;
+    /// ```
     pub async fn receive<T: DeserializeOwned>(&mut self) -> Result<T>
     where
         R: ReadFormat,
@@ -79,7 +100,10 @@ impl<R, W> Channel<R, W> {
         })
     }
 
-    /// returns error if the channel is already encrypted
+    /// Try to encrypt channel using the provided transport.
+    /// Will return an error if channel is already encrypted.
+    /// To turn `Arc<StatelessTransportState>` into the inner transport state
+    /// use `Arc::try_unwrap(transport)`.
     pub fn encrypt(
         &mut self,
         transport: StatelessTransportState,
@@ -90,6 +114,10 @@ impl<R, W> Channel<R, W> {
         }
     }
 
+    /// Send an object through the channel
+    /// ```no_run
+    /// chan.send("Hello world!").await?;
+    /// ```
     pub async fn send<T: Serialize>(&mut self, obj: T) -> Result<usize>
     where
         W: SendFormat,
@@ -99,6 +127,10 @@ impl<R, W> Channel<R, W> {
             Channel::Bipartite(chan) => chan.send(obj).await,
         }
     }
+    /// Receive an object sent through the channel
+    /// ```no_run
+    /// let string: String = chan.receive().await?;
+    /// ```
     pub async fn receive<T: DeserializeOwned>(&mut self) -> Result<T>
     where
         R: ReadFormat,
@@ -108,12 +140,14 @@ impl<R, W> Channel<R, W> {
             Channel::Bipartite(chan) => chan.receive().await,
         }
     }
+    /// Split channel into its send and receive components
     pub fn split(self) -> (SendChannel<W>, ReceiveChannel<R>) {
         match self {
             Channel::Unified(chan) => chan.split(),
             Channel::Bipartite(chan) => chan.split(),
         }
     }
+    /// Join send and receive channels into a channel
     pub fn join(send: SendChannel<W>, receive: ReceiveChannel<R>) -> Self {
         Self::Bipartite(BipartiteChannel {
             receive_channel: receive,
@@ -123,6 +157,10 @@ impl<R, W> Channel<R, W> {
 }
 
 impl<'a> RefUnformattedBidirectionalChannel<'a> {
+    /// Send an object through the channel serialized with format
+    /// ```no_run
+    /// chan.send("Hello world!", &mut Format::Bincode).await?;
+    /// ```
     pub async fn send<T: Serialize, F: SendFormat>(
         &mut self,
         obj: T,
@@ -140,6 +178,10 @@ impl<'a> RefUnformattedBidirectionalChannel<'a> {
             }
         }
     }
+    /// Receive an object sent through the channel with format
+    /// ```no_run
+    /// let string: String = chan.receive(&mut Format::Bincode).await?;
+    /// ```
     pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
         &mut self,
         format: &mut F,
@@ -167,6 +209,10 @@ impl<'a> RefUnformattedBidirectionalChannel<'a> {
 }
 
 impl UnformattedBidirectionalChannel {
+    /// Send an object through the channel serialized with format
+    /// ```no_run
+    /// chan.send("Hello world!", &mut Format::Bincode).await?;
+    /// ```
     pub async fn send<T: Serialize, F: SendFormat>(
         &mut self,
         obj: T,
@@ -177,6 +223,10 @@ impl UnformattedBidirectionalChannel {
             Self::Bipartite(chan) => chan.send(obj, format).await,
         }
     }
+    /// Receive an object sent through the channel with format
+    /// ```no_run
+    /// let string: String = chan.receive(&mut Format::Bincode).await?;
+    /// ```
     pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
         &mut self,
         format: &mut F,
@@ -186,6 +236,8 @@ impl UnformattedBidirectionalChannel {
             UnformattedBidirectionalChannel::Bipartite(chan) => chan.receive(format).await,
         }
     }
+    #[must_use]
+    /// Split channel into its send and receive components
     pub fn split(self) -> (UnformattedSendChannel, UnformattedReceiveChannel) {
         match self {
             UnformattedBidirectionalChannel::Unified(chan) => chan.split(),

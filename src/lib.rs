@@ -1,5 +1,5 @@
 #![forbid(unsafe_code)]
-// #![forbid(missing_docs)]
+#![warn(missing_docs)]
 #![warn(clippy::all)]
 
 //! # Canary
@@ -12,25 +12,28 @@
 //! - Providers
 //!
 //! Channels help communicate through the network,
-//! and providers help expose services through the network.
+//! and providers help create endpoints through which you can get Channels.
 //!
 //! The crate is well-documented, but if you need any examples
 //! you should use [the book](https://znx3p0.github.io/canary-book/),
-//! and any questions should be asked in [the discord](https://discord.gg/QaWxMzAZs8)
+//! and additional questions should be asked in [the discord](https://discord.gg/QaWxMzAZs8)
 
-/// contains encrypted stream
+/// Contains encrypted stream
 pub mod async_snow;
-/// contains channels and constructs associated with them
+/// Contains channels and constructs associated with them
 pub mod channel;
 mod io;
-/// contains common imports
+/// Contains common imports
 pub mod prelude;
-/// contains providers and address
+/// Contains providers and address
 pub mod providers;
 
-/// contains the serialization methods for channels
+/// Contains the serialization methods for channels
 /// and formats
 pub mod serialization;
+
+/// Contains types that allow compile-time checking of message order.
+/// It can help debug complex systems.
 pub mod type_iter;
 
 pub use channel::channels::Channel;

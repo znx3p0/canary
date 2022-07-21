@@ -7,9 +7,7 @@ use crate::{
     async_snow::RefDividedSnow,
     channel::{
         channels::{ReceiveChannel, SendChannel},
-        raw::unified::unformatted::{
-            RefUnformattedRawUnifiedChannel, UnformattedRawUnifiedChannel,
-        },
+        raw::unified::unformatted::UnformattedRawUnifiedChannel,
     },
     serialization::formats::{Format, ReadFormat, SendFormat},
     Result,
@@ -20,41 +18,65 @@ use super::{
     snowwith::WithCipher,
 };
 
+/// Unformmated channel that has not been split.
+/// Can be encrypted or raw.
 pub enum UnformattedUnifiedChannel {
+    /// Unencrypted channel
     Raw(UnformattedRawUnifiedChannel),
+    /// Encrypted channel with transport state and nonces
     Encrypted {
+        /// Inner channel
         chan: UnformattedRawUnifiedChannel,
+        /// Inner transport state
         transport: StatelessTransportState,
+        /// Inner send nonce
         send_nonce: u32,
+        /// Inner receive nonce
         receive_nonce: u32,
     },
 }
 
+/// Channel that has not been split with read and write formats
 pub struct UnifiedChannel<R = Format, W = Format> {
+    /// Inner channel
     pub channel: UnformattedUnifiedChannel,
+    /// Inner receive format
     pub receive_format: R,
+    /// Inner send format
     pub send_format: W,
 }
 
 impl<R, W> UnifiedChannel<R, W> {
+    /// Try to encrypt channel using the provided transport.
+    /// Will return an error if channel is already encrypted
     pub fn encrypt(
         &mut self,
         transport: StatelessTransportState,
     ) -> Result<(), StatelessTransportState> {
         self.channel.encrypt(transport)
     }
+    /// Send an object through the channel
+    /// ```no_run
+    /// chan.send("Hello world!").await?;
+    /// ```
     pub async fn send<T: Serialize>(&mut self, obj: T) -> Result<usize>
     where
         W: SendFormat,
     {
         self.channel.send(obj, &mut self.send_format).await
     }
+    /// Receive an object sent through the channel
+    /// ```no_run
+    /// let string: String = chan.receive().await?;
+    /// ```
     pub async fn receive<T: DeserializeOwned>(&mut self) -> Result<T>
     where
         R: ReadFormat,
     {
         self.channel.receive(&mut self.receive_format).await
     }
+    #[must_use]
+    /// Split channel into its send and receive components
     pub fn split(self) -> (SendChannel<W>, ReceiveChannel<R>) {
         let (send, receive) = self.channel.split();
         let send = send.to_formatted(self.send_format);
@@ -64,6 +86,8 @@ impl<R, W> UnifiedChannel<R, W> {
 }
 
 impl UnformattedUnifiedChannel {
+    /// Try to encrypt channel using the provided transport.
+    /// Will return an error if channel is already encrypted.
     pub fn encrypt(
         &mut self,
         transport: StatelessTransportState,
@@ -83,6 +107,10 @@ impl UnformattedUnifiedChannel {
         });
         state
     }
+    /// Send an object through the channel serialized with format
+    /// ```no_run
+    /// chan.send("Hello world!", &mut Format::Bincode).await?;
+    /// ```
     pub async fn send<T: Serialize, F: SendFormat>(
         &mut self,
         obj: T,
@@ -105,6 +133,10 @@ impl UnformattedUnifiedChannel {
             }
         }
     }
+    /// Receive an object sent through the channel with format
+    /// ```no_run
+    /// let string: String = chan.receive(&mut Format::Bincode).await?;
+    /// ```
     pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
         &mut self,
         format: &mut F,
@@ -126,6 +158,8 @@ impl UnformattedUnifiedChannel {
             }
         }
     }
+    #[must_use]
+    /// Split channel into its send and receive components
     pub fn split(self) -> (UnformattedSendChannel, UnformattedReceiveChannel) {
         match self {
             Self::Raw(chan) => {
@@ -150,13 +184,4 @@ impl UnformattedUnifiedChannel {
             }
         }
     }
-}
-
-pub enum RefUnformattedUnifiedChannel<'a> {
-    Raw(RefUnformattedRawUnifiedChannel<'a>),
-    Encrypted(
-        RefUnformattedRawUnifiedChannel<'a>,
-        &'a StatelessTransportState,
-        &'a mut u32,
-    ),
 }

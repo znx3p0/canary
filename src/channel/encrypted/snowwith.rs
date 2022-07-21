@@ -8,8 +8,11 @@ use serde::{de::DeserializeOwned, Serialize};
 use crate::serialization::formats::{ReadFormat, SendFormat};
 
 #[derive(From)]
+/// helper struct that facilitates encryption
 pub struct WithCipher<'a, C, F> {
+    /// cipher
     pub snow: &'a mut C,
+    /// serialization format
     pub format: &'a mut F,
 }
 

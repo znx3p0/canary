@@ -4,15 +4,24 @@ use snow::{params::*, StatelessTransportState};
 
 const PACKET_LEN: u64 = 65519;
 
+/// helper struct that can be used to encrypt messages.
+/// it contains the transport and a nonce.
 pub struct RefDividedSnow<'a> {
+    /// reference to transport state
     pub transport: &'a StatelessTransportState,
+    /// external nonce
     pub nonce: &'a mut u32,
 }
+
+/// helper trait used to encrypt
 pub trait Encrypt {
+    /// encrypt buffer into another
     fn encrypt_packets(&mut self, buf: Vec<u8>) -> Result<Vec<u8>>;
 }
 
+/// helper trait used to decrypt
 pub trait Decrypt {
+    /// decrypt slice into a buffer
     fn decrypt(&mut self, buf: &[u8]) -> Result<Vec<u8>>;
 }
 

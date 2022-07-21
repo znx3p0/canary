@@ -18,6 +18,8 @@ use crate::{
 use super::formatted::RefRawUnifiedChannel;
 
 #[derive(From)]
+/// Reference unformatted unencrypted channel that has not been separated
+/// into its read/write components
 pub enum RefUnformattedRawUnifiedChannel<'a> {
     #[cfg(not(target_arch = "wasm32"))]
     /// tcp backend
@@ -33,23 +35,29 @@ pub enum RefUnformattedRawUnifiedChannel<'a> {
 }
 
 #[derive(From)]
+/// Unformatted unencrypted channel that has not been separated
+/// into its read/write components
 pub enum UnformattedRawUnifiedChannel {
     #[cfg(not(target_arch = "wasm32"))]
-    /// tcp backend
+    /// Tcp backend
     Tcp(TcpStream),
     #[cfg(unix)]
-    /// unix backend
+    /// Unix backend
     Unix(UnixStream),
-    /// wss backend
+    /// WebSocket backend
     Wss(Box<Wss>), // boxed since it's heavy and would weigh down other variants
     #[cfg(all(not(target_arch = "wasm32"), feature = "quic"))]
+    /// Quic backend
     Quic(quinn::SendStream, quinn::RecvStream),
 }
 
 impl UnformattedRawUnifiedChannel {
+    /// Construct an unformatted raw unified channel from any backend
     pub fn new(from: impl Into<Self>) -> Self {
         from.into()
     }
+    #[must_use]
+    /// Split channel into its send and receive components
     pub fn split(self) -> (UnformattedRawSendChannel, UnformattedRawReceiveChannel) {
         match self {
             #[cfg(not(target_arch = "wasm32"))]
@@ -72,6 +80,10 @@ impl UnformattedRawUnifiedChannel {
             }
         }
     }
+    /// Send an object through the channel serialized with format
+    /// ```no_run
+    /// chan.send("Hello world!", &mut Format::Bincode).await?;
+    /// ```
     pub async fn send<T: Serialize, F: SendFormat>(
         &mut self,
         obj: T,
@@ -81,6 +93,10 @@ impl UnformattedRawUnifiedChannel {
             .send(obj, format)
             .await
     }
+    /// Receive an object sent through the channel with format
+    /// ```no_run
+    /// let string: String = chan.receive(&mut Format::Bincode).await?;
+    /// ```
     pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
         &mut self,
         format: &mut F,
@@ -109,6 +125,10 @@ impl<'a> From<&'a mut UnformattedRawUnifiedChannel> for RefUnformattedRawUnified
 }
 
 impl<'a> RefUnformattedRawUnifiedChannel<'a> {
+    /// Send an object through the channel serialized with format
+    /// ```no_run
+    /// chan.send("Hello world!", &mut Format::Bincode).await?;
+    /// ```
     pub async fn send<T: Serialize, F: SendFormat>(
         &mut self,
         obj: T,
@@ -144,6 +164,10 @@ impl<'a> RefUnformattedRawUnifiedChannel<'a> {
             }
         }
     }
+    /// Receive an object sent through the channel with format
+    /// ```no_run
+    /// let string: String = chan.receive(&mut Format::Bincode).await?;
+    /// ```
     pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
         &mut self,
         format: &mut F,
@@ -160,6 +184,12 @@ impl<'a> RefUnformattedRawUnifiedChannel<'a> {
             Self::Quic(_, st) => rx(st, format).await,
         }
     }
+    /// Get a formatted channel with the specified format
+    /// ```no_run
+    /// unformatted.send("Hi!", &mut Format::Bincode).await?;
+    /// let mut formatted = unformatted.as_formatted(Format::Bincode).await?;
+    /// formatted.send("Hi!").await?;
+    /// ```
     pub fn as_formatted<F>(&'a mut self, format: F) -> RefRawUnifiedChannel<'a, F> {
         RefRawUnifiedChannel {
             channel: self,

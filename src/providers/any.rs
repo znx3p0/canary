@@ -40,7 +40,7 @@ impl AnyProvider {
     /// get the next handshake
     ///
     /// CANCEL SAFETY: this method is cancel-safe, feel free to use it in select statements.
-    /// ```norun
+    /// ```no_run
     /// while let Ok(chan) = provider.next().await {
     ///     let mut chan = chan.encrypted().await?;
     ///     chan.send("hello!").await?;
@@ -80,7 +80,7 @@ impl AnyProvider {
     /// get the next channel
     /// ! NOTE: You should only use this method as the example shows, since
     /// it uses internal future tooling to avoid using another runtime.
-    /// ```norun
+    /// ```no_run
     /// while let Ok(chan) = provider.next().await {
     ///     let mut chan = chan.encrypted().await?;
     ///     chan.send("hello!").await?;

@@ -41,7 +41,7 @@ impl SendFormat for Format {
             #[cfg(feature = "messagepack_ser")]
             Format::MessagePack => MessagePack.serialize(obj),
             #[cfg(feature = "bson_ser")]
-            Format::Bson => todo!(),
+            Format::Bson => Bson.serialize(obj),
         }
     }
 }
@@ -60,7 +60,42 @@ impl ReadFormat for Format {
             #[cfg(feature = "messagepack_ser")]
             Format::MessagePack => MessagePack.deserialize(bytes),
             #[cfg(feature = "bson_ser")]
-            Format::Bson => todo!(),
+            Format::Bson => Bson.deserialize(bytes),
+        }
+    }
+}
+
+impl SendFormat for &mut Format {
+    fn serialize<O: Serialize>(&mut self, obj: &O) -> crate::Result<Vec<u8>> {
+        match self {
+            Format::Bincode => Bincode.serialize(obj),
+            #[cfg(feature = "json_ser")]
+            Format::Json => Json.serialize(obj),
+            #[cfg(feature = "postcard_ser")]
+            Format::Postcard => Postcard.serialize(obj),
+            #[cfg(feature = "messagepack_ser")]
+            Format::MessagePack => MessagePack.serialize(obj),
+            #[cfg(feature = "bson_ser")]
+            Format::Bson => Bson.serialize(obj),
+        }
+    }
+}
+
+impl ReadFormat for &mut Format {
+    fn deserialize<T>(&mut self, bytes: &[u8]) -> crate::Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        match self {
+            Format::Bincode => Bincode.deserialize(bytes),
+            #[cfg(feature = "json_ser")]
+            Format::Json => Json.deserialize(bytes),
+            #[cfg(feature = "postcard_ser")]
+            Format::Postcard => Postcard.deserialize(bytes),
+            #[cfg(feature = "messagepack_ser")]
+            Format::MessagePack => MessagePack.deserialize(bytes),
+            #[cfg(feature = "bson_ser")]
+            Format::Bson => Bson.deserialize(bytes),
         }
     }
 }

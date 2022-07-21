@@ -19,8 +19,11 @@ use crate::{
 use super::snowwith::WithCipher;
 
 #[derive(From)]
+/// Reference unformatted receive channel, may be encrypted
 pub enum RefUnformattedReceiveChannel<'a> {
+    /// Unencrypted channel
     Raw(RefUnformattedRawReceiveChannel<'a>),
+    /// Encrypted channel
     Encrypted(
         RefUnformattedRawReceiveChannel<'a>,
         &'a Arc<StatelessTransportState>,
@@ -29,8 +32,11 @@ pub enum RefUnformattedReceiveChannel<'a> {
 }
 
 #[derive(From)]
+/// Unformatted receive channel, may be encrypted
 pub enum UnformattedReceiveChannel {
+    /// Unencrypted channel
     Raw(UnformattedRawReceiveChannel),
+    /// Encrypted channel
     Encrypted(
         UnformattedRawReceiveChannel,
         Arc<StatelessTransportState>,
@@ -39,18 +45,28 @@ pub enum UnformattedReceiveChannel {
 }
 
 #[derive(From)]
+/// Reference receive channel with format
 pub struct RefReceiveChannel<'a, F = Format> {
+    /// Inner channel
     pub channel: RefUnformattedReceiveChannel<'a>,
+    /// Inner format
     pub format: F,
 }
 
 #[derive(From)]
+/// Receive channel with format
 pub struct ReceiveChannel<F = Format> {
+    /// Inner channel
     pub channel: UnformattedReceiveChannel,
+    /// Inner format
     pub format: F,
 }
 
 impl<'a, F> RefReceiveChannel<'a, F> {
+    /// Receive an object sent through the channel
+    /// ```no_run
+    /// let string: String = chan.receive().await?;
+    /// ```
     pub async fn receive<T: DeserializeOwned>(&mut self) -> Result<T>
     where
         F: ReadFormat,
@@ -60,24 +76,37 @@ impl<'a, F> RefReceiveChannel<'a, F> {
 }
 
 impl<R> ReceiveChannel<R> {
+    /// Try to encrypt channel using the provided transport.
+    /// Will return an error if channel is already encrypted.
+    /// To turn `Arc<StatelessTransportState>` into the inner transport state
+    /// use `Arc::try_unwrap(transport)`.
     pub fn encrypt(
         &mut self,
         transport: Arc<StatelessTransportState>,
     ) -> Result<(), Arc<StatelessTransportState>> {
         self.channel.encrypt(transport)
     }
+    /// Receive an object sent through the channel
+    /// ```no_run
+    /// let string: String = chan.receive().await?;
+    /// ```
     pub async fn receive<T: DeserializeOwned>(&mut self) -> Result<T>
     where
         R: ReadFormat,
     {
         self.channel.receive(&mut self.format).await
     }
+    /// Join `Self` and a `SendChannel` into a bidirectional channel
     pub fn join<W>(self, send: SendChannel<W>) -> Channel<R, W> {
         Channel::join(send, self)
     }
 }
 
 impl<'a> RefUnformattedReceiveChannel<'a> {
+    /// Receive an object sent through the channel with format
+    /// ```no_run
+    /// let string: String = chan.receive(&mut Format::Bincode).await?;
+    /// ```
     pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
         &mut self,
         format: &mut F,
@@ -105,6 +134,10 @@ impl<'a> RefUnformattedReceiveChannel<'a> {
 }
 
 impl UnformattedReceiveChannel {
+    /// Try to encrypt channel using the provided transport.
+    /// Will return an error if channel is already encrypted.
+    /// To turn `Arc<StatelessTransportState>` into the inner transport state
+    /// use `Arc::try_unwrap(transport)`.
     pub fn encrypt(
         &mut self,
         transport: Arc<StatelessTransportState>,
@@ -119,12 +152,20 @@ impl UnformattedReceiveChannel {
         });
         state
     }
+    /// Format the channel
+    /// ```no_run
+    /// let formatted = unformatted.to_formatted(Format::Bincode);
+    /// ```
     pub fn to_formatted<F>(self, format: F) -> ReceiveChannel<F> {
         ReceiveChannel {
             channel: self,
             format,
         }
     }
+    /// Receive an object sent through the channel with format
+    /// ```no_run
+    /// let string: String = chan.receive(&mut Format::Bincode).await?;
+    /// ```
     pub async fn receive<T: DeserializeOwned, F: ReadFormat>(
         &mut self,
         format: &mut F,

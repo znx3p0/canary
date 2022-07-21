@@ -26,6 +26,7 @@ pub enum RefUnformattedRawSendChannel<'a> {
 }
 
 #[derive(From)]
+/// Unformatted unnecrypted send channel
 pub enum UnformattedRawSendChannel {
     #[cfg(not(target_arch = "wasm32"))]
     /// tcp backend
@@ -41,12 +42,16 @@ pub enum UnformattedRawSendChannel {
 }
 
 #[derive(From)]
+/// Reference unencrypted send channel with format
 pub struct RefRawSendChannel<'a, F = Format> {
+    /// Inner reference channel
     channel: &'a mut RefUnformattedRawSendChannel<'a>,
+    /// Inner format
     format: F,
 }
 
 #[derive(From)]
+/// Unencrypted send channel with format
 pub struct RawSendChannel<F = Format> {
     pub(crate) channel: UnformattedRawSendChannel,
     pub(crate) format: F,
@@ -68,6 +73,10 @@ impl<'a> From<&'a mut UnformattedRawSendChannel> for RefUnformattedRawSendChanne
 }
 
 impl<'a> RefUnformattedRawSendChannel<'a> {
+    /// Send an object through the channel serialized with format
+    /// ```no_run
+    /// chan.send("Hello world!", &mut Format::Bincode).await?;
+    /// ```
     pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, f: &mut F) -> Result<usize> {
         #[allow(unused)]
         use crate::serialization::tx;
@@ -98,6 +107,12 @@ impl<'a> RefUnformattedRawSendChannel<'a> {
             RefUnformattedRawSendChannel::Quic(st) => tx(st, obj, f).await,
         }
     }
+    /// Get a formatted channel with the specified format
+    /// ```no_run
+    /// unformatted.send("Hi!", &mut Format::Bincode).await?;
+    /// let mut formatted = unformatted.as_formatted(Format::Bincode).await?;
+    /// formatted.send("Hi!").await?;
+    /// ```
     pub fn as_formatted<F>(&'a mut self, format: F) -> RefRawSendChannel<'a, F> {
         RefRawSendChannel {
             channel: self,
@@ -107,9 +122,17 @@ impl<'a> RefUnformattedRawSendChannel<'a> {
 }
 
 impl UnformattedRawSendChannel {
+    /// Send an object through the channel serialized with format
+    /// ```no_run
+    /// chan.send("Hello world!", &mut Format::Bincode).await?;
+    /// ```
     pub async fn send<T: Serialize, F: SendFormat>(&mut self, obj: T, f: &mut F) -> Result<usize> {
         RefUnformattedRawSendChannel::from(self).send(obj, f).await
     }
+    /// Format the channel
+    /// ```no_run
+    /// let formatted = unformatted.to_formatted(Format::Bincode);
+    /// ```
     pub fn to_formatted<F: SendFormat>(self, format: F) -> RawSendChannel<F> {
         RawSendChannel {
             channel: self,
@@ -119,12 +142,20 @@ impl UnformattedRawSendChannel {
 }
 
 impl<F: SendFormat> RefRawSendChannel<'_, F> {
+    /// Send an object through the channel
+    /// ```no_run
+    /// chan.send("Hello world!").await?;
+    /// ```
     pub async fn send<T: Serialize>(&mut self, obj: T) -> Result<usize> {
         self.channel.send(obj, &mut self.format).await
     }
 }
 
 impl<F: SendFormat> RawSendChannel<F> {
+    /// Send an object through the channel
+    /// ```no_run
+    /// chan.send("Hello world!").await?;
+    /// ```
     pub async fn send<T: Serialize>(&mut self, obj: T) -> Result<usize> {
         self.channel.send(obj, &mut self.format).await
     }

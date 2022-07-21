@@ -26,7 +26,7 @@ cfg_if! {
 
 #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
 /// Represents the address of a provider.
-/// ```norun
+/// ```no_run
 /// let tcp = "tcp@127.0.0.1:8080".parse::<Addr>()?;
 /// let unix = "unix@mysocket.sock".parse::<Addr>()?;
 /// let insecure_tcp = "itcp@127.0.0.1:8080".parse::<Addr>()?;
